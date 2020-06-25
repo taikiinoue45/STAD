@@ -32,6 +32,7 @@ def train_normal_images():
 
 def test_nomal_images():
     img_dir = CWD / 'test/good'
+    npy_dir = CWD / 'anomaly_map/good'
 
     min_value = 0
     max_value = -1
@@ -44,10 +45,25 @@ def test_nomal_images():
     img_path = img_dir / f'{idx.zfill(3)}.png'
     img = Image.open(img_path)
 
+    npy_path = npy_dir / f'{idx.zfill(3)}.npy'
+    anomaly_map = np.load(npy_path)
+    anomaly_map[0, 0] = 0.5  # set a maximum value
+    anomaly_map[0, 1] = 0.0  # set a minimum value
+
     plt.figure(figsize=(15, 5))
-    plt.subplot(132)
+    plt.subplot(131)
     plt.imshow(img)
     plt.axis('off')
+
+    plt.subplot(132)
+    plt.imshow(anomaly_map)
+    plt.axis('off')
+
+    plt.subplot(133)
+    plt.imshow(img)
+    plt.imshow(anomaly_map, alpha=0.3)
+    plt.axis('off')
+
     st.pyplot()
 
 
@@ -66,6 +82,8 @@ def test_anomaly_images():
 
     npy_path = npy_dir / f'{idx.zfill(3)}.npy'
     anomaly_map = np.load(npy_path)
+    anomaly_map[0, 0] = 0.5  # set a maximum value
+    anomaly_map[0, 1] = 0.0  # set a minimum value
 
     img_path = img_dir / f'{idx.zfill(3)}.png'
     img = Image.open(img_path)
