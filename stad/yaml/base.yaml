@@ -1,0 +1,21 @@
+dataset:
+  name: SomicDataset
+  path: /dgx/shared/momo/Data/Squirrel_Datasets/kasimeware/
+  
+model:
+  teacher: VGG19-ImageNet
+  student: VGG19
+  teacher_pth_path: /dgx/shared/momo/Data/Parameters/resnest101-22405ba7.pth
+  student_pth_path: /dgx/shared/momo/Data/somic_model_weights/deeplabv3plus/kasimeware_deeplabv3_resnest.pth
+
+training:
+  loss: 
+    name: Cross_Entropy2D
+  scheduler:
+    name: CosineAnnealingLR
+    args:
+    T_max: 5
+  optimizer:
+    name: adam
+    args:
+    lr: 1e-4
