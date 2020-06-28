@@ -1,7 +1,13 @@
-from trainer import Trainer
+import hydra
+from trainer.builder import Builder
 
-parser = argparse.ArgumentParser()
-parser.add_argument('yaml', help='yaml path', type=str)
-args = parser.parse_args()
-builder = CustomBuilder(args.yaml)
-builder.run()
+
+@hydra.main(config_path='/app/github/STAD/stad/yamls/base.yaml')
+def my_app(cfg):
+    builder = Builder(cfg)
+    builder.run_train()
+    builder.run_inference()
+
+
+if __name__ == "__main__":
+    my_app()

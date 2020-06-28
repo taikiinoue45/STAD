@@ -1,0 +1,44 @@
+device: 'cuda:0'
+
+dataset:
+  name: MVTec
+  path: /app/github/data/bottle/train/good
+
+epochs: 2
+
+augs:
+  train:
+  - name: HorizontalFlip
+    args:
+      p: 0.5
+  - name: RandomCrop
+    args:
+      height: 128
+      width: 128
+      always_apply: True
+      p: 1
+  - name: Normalize
+    args:
+      always_apply: True
+      p: 1
+  test:
+  - name: Normalize
+    args:
+      always_apply: True
+      p: 1
+
+optim:
+  name: Adam
+  lr: 0.0002
+  weight_decay: 0.00001
+
+criterion:
+  name: MSELoss
+
+inference:
+  img:
+    path: /app/github/data/bottle/test/broken_small/000.png
+  mask:
+    path: /app/github/data/bottle/ground_truth/broken_small/000_mask.png
+  savefig:
+    path: /app/github/output.png
