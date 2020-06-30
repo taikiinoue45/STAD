@@ -4,7 +4,7 @@ dataset:
   name: MVTec
   path: /dgx/shared/momo/Data/MVTec/bottle/train/good
 
-epochs: 100
+epochs: 10
 
 augs:
   train:

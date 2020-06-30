@@ -7,11 +7,13 @@ from stad.models.school import School
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from pathlib import Path
+from tqdm import tqdm
 import torch
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import albumentations as albu
+from torch2trt import torch2trt
 
 
 class Builder:
@@ -25,6 +27,9 @@ class Builder:
         self.school = self.school.to(self.cfg.device)
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
+        
+        dummy_x = torch.ones((128, 128)).to(self.cfg.device)
+        self.school.teacher = torch2trt(self.school.teacher, [dummy_x])
 
     def get_school(self):
         return School()
@@ -73,8 +78,7 @@ class Builder:
     def run_train(self):
         
         self.school.teacher.eval()
-        for epoch in range(self.cfg.epochs):
-            print(f'epoch: {epoch}')
+        for epoch in tqdm(range(self.cfg.epochs)):
             for img in self.dataloader:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
@@ -96,8 +100,7 @@ class Builder:
 
         self.school.teacher.eval()
         self.school.student.eval()
-        for i in range(64, 900-64):
-            print(i)
+        for i in tqdm(range(64, 900-64)):
             for j in range(64, 900-64):
                 patch = img[i-64:i+64, j-64:j+64]
                 sample = self.test_augs(image=patch)

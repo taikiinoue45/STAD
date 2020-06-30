@@ -12,7 +12,7 @@ class School(nn.Module):
         self.teacher = pretrained_vgg.features[:36]
         self.student = vgg.features[:36]
         self.teacher
-
+        
     def forward(self, x):
         with torch.no_grad():
             surrogate_label = self.teacher(x)
