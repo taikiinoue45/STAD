@@ -20,11 +20,11 @@ class MVTecDataset(Dataset):
         img_path = str(self.img_paths[idx])
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
+        
         if self.augs:
             sample = self.augs(image=img)
             img = sample['image']
-
+            
         return img
 
     def __len__(self) -> int:

@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/app/github/STAD')
+sys.path.append('/dgx/inoue/github/STAD')
 
 
 from stad.datasets.MVTecDataset import MVTecDataset
@@ -36,6 +36,7 @@ class Builder:
             fn = getattr(albu, name)
             augs.append(fn(**self.cfg['augs']['train'][i]['args']))
         augs.append(ToTensorV2())
+        [print(f'train aug: {aug}') for aug in augs]
         return albu.Compose(augs)
 
     def get_test_augs(self):
@@ -43,8 +44,9 @@ class Builder:
         for i in range(len(self.cfg.augs.test)):
             name = self.cfg['augs']['test'][i]['name']
             fn = getattr(albu, name)
-            augs.append(fn(**self.cfg['augs']['train'][i]['args']))
+            augs.append(fn(**self.cfg['augs']['test'][i]['args']))
         augs.append(ToTensorV2())
+        [print(f'test aug: {aug}') for aug in augs]
         return albu.Compose(augs)
 
     def get_dataloader(self):
@@ -69,6 +71,8 @@ class Builder:
         return torch.nn.MSELoss(reduction='mean')
 
     def run_train(self):
+        
+        self.school.teacher.eval()
         for epoch in range(self.cfg.epochs):
             print(f'epoch: {epoch}')
             for img in self.dataloader:
@@ -88,19 +92,19 @@ class Builder:
         mask = cv2.imread(mask_path)
         mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
 
-        anomaly_map = np.zeros(img.shape[:2])
+        anomaly_map = np.zeros((900, 900))
 
-        self.school.eval()
-        for i in range(64, img.shape[0]-64):
+        self.school.teacher.eval()
+        self.school.student.eval()
+        for i in range(64, 900-64):
             print(i)
-            for j in range(64, img.shape[1]-64):
+            for j in range(64, 900-64):
                 patch = img[i-64:i+64, j-64:j+64]
                 sample = self.test_augs(image=patch)
                 patch = sample['image']
                 patch = patch.unsqueeze(0)
-                patch = patch.float()
                 patch = patch.to(self.cfg.device)
-
+                
                 surrogate_label, pred = self.school(patch)
                 loss = self.criterion(pred, surrogate_label)
                 anomaly_map[i, j] = loss.item()

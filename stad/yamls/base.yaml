@@ -1,10 +1,10 @@
-device: 'cuda:0'
+device: 'cuda:2'
 
 dataset:
   name: MVTec
-  path: /app/github/data/bottle/train/good
+  path: /dgx/shared/momo/Data/MVTec/bottle/train/good
 
-epochs: 2
+epochs: 100
 
 augs:
   train:
@@ -35,10 +35,15 @@ optim:
 criterion:
   name: MSELoss
 
+train:
+  batch_size: 1
+  teacher_pth_path: /dgx/inoue/teacher.pth
+  student_pth_path: /dgx/inoue/student.pth
+
 inference:
   img:
-    path: /app/github/data/bottle/test/broken_small/000.png
+    path: /dgx/shared/momo/Data/MVTec/bottle/test/broken_small/000.png
   mask:
-    path: /app/github/data/bottle/ground_truth/broken_small/000_mask.png
+    path: /dgx/shared/momo/Data/MVTec/bottle/ground_truth/broken_small/000_mask.png
   savefig:
-    path: /app/github/output.png
+    path: /dgx/inoue/output.png

@@ -2,7 +2,7 @@ import hydra
 from trainer.builder import Builder
 
 
-@hydra.main(config_path='/app/github/STAD/stad/yamls/base.yaml')
+@hydra.main(config_path='/dgx/inoue/github/STAD/stad/yamls/base.yaml')
 def my_app(cfg):
     builder = Builder(cfg)
     builder.run_train()
