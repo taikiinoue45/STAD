@@ -1,8 +1,8 @@
-device: 'cuda:2'
+device: cuda:0
 
 dataset:
-  name: MVTec
-  path: /dgx/shared/momo/Data/MVTec/bottle/train/good
+  name: SomicDataset
+  path: /app/github/data/H_body_normal
 
 epochs: 10
 
@@ -42,8 +42,8 @@ train:
 
 inference:
   img:
-    path: /dgx/shared/momo/Data/MVTec/bottle/test/broken_small/000.png
+    path: /app/github/data/bottle/test/broken_small/000.png
   mask:
-    path: /dgx/shared/momo/Data/MVTec/bottle/ground_truth/broken_small/000_mask.png
+    path: /app/github/data/bottle/ground_truth/broken_small/000_mask.png
   savefig:
-    path: /dgx/inoue/output.png
+    path: /app/github/output.png

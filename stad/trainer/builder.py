@@ -1,19 +1,18 @@
 import sys
-sys.path.append('/dgx/inoue/github/STAD')
+sys.path.append('/app/github/STAD/')
 
-
-from stad.datasets.MVTecDataset import MVTecDataset
-from stad.models.school import School
-from albumentations.pytorch import ToTensorV2
-from torch.utils.data import DataLoader
-from pathlib import Path
-from tqdm import tqdm
+import stad
 import torch
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import albumentations as albu
-from torch2trt import torch2trt
+
+from stad.models.school import School
+from albumentations.pytorch import ToTensorV2
+from torch.utils.data import DataLoader
+from pathlib import Path
+from tqdm import tqdm
 
 
 class Builder:
@@ -28,9 +27,7 @@ class Builder:
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
         
-        dummy_x = torch.ones((128, 128)).to(self.cfg.device)
-        self.school.teacher = torch2trt(self.school.teacher, [dummy_x])
-
+        
     def get_school(self):
         return School()
 
@@ -55,8 +52,11 @@ class Builder:
         return albu.Compose(augs)
 
     def get_dataloader(self):
-        dataset = MVTecDataset(img_dir=Path(self.cfg.dataset.path),
-                               augs=self.train_augs)
+        dataset_name = self.cfg.dataset.name
+        Dataset = getattr(stad.datasets, dataset_name)
+            
+        dataset = Dataset(img_dir=Path(self.cfg.dataset.path),
+                          augs=self.train_augs)
 
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=1,
@@ -110,7 +110,7 @@ class Builder:
                 
                 surrogate_label, pred = self.school(patch)
                 loss = self.criterion(pred, surrogate_label)
-                anomaly_map[i, j] = loss.item()
+                anomaly_map[i-64:i+64, j-64:j+64] = loss.item()
 
         plt.figure(figsize=(12, 8))
 
