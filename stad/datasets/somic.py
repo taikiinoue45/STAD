@@ -5,7 +5,7 @@ from pathlib import Path
 from torch.utils.data import Dataset
 
 
-class MVTecDataset(Dataset):
+class SomicDataset(Dataset):
 
     def __init__(self,
                  img_dir: Path,

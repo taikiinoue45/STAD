@@ -4,8 +4,6 @@ dataset:
   name: SomicDataset
   path: /app/github/data/H_body_normal
 
-epochs: 10
-
 augs:
   train:
   - name: HorizontalFlip
@@ -36,14 +34,15 @@ criterion:
   name: MSELoss
 
 train:
+  epochs: 1000
   batch_size: 1
   teacher_pth_path: /dgx/inoue/teacher.pth
   student_pth_path: /dgx/inoue/student.pth
 
 inference:
   img:
-    path: /app/github/data/bottle/test/broken_small/000.png
+    path: /app/github/data/H_body_anomaly/1_2020_0610_093341[3].bmp
   mask:
-    path: /app/github/data/bottle/ground_truth/broken_small/000_mask.png
+    path: /app/github/data/H_body_anomaly/1_2020_0610_093341[3].bmp
   savefig:
     path: /app/github/output.png

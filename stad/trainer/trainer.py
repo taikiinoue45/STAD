@@ -1,23 +1,24 @@
 import sys
 sys.path.append('/app/github/STAD/')
 
-import stad
+import stad.datasets
+import stad.models
 import torch
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import albumentations as albu
 
-from stad.models.school import School
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from pathlib import Path
 from tqdm import tqdm
 
 
-class Builder:
+class Trainer:
 
     def __init__(self, cfg):
+
         self.cfg = cfg
         self.train_augs = self.get_train_augs()
         self.test_augs = self.get_test_augs()
@@ -29,9 +30,12 @@ class Builder:
         
         
     def get_school(self):
-        return School()
+
+        return stad.models.School()
+
 
     def get_train_augs(self):
+
         augs = []
         for i in range(len(self.cfg.augs.train)):
             name = self.cfg['augs']['train'][i]['name']
@@ -41,7 +45,9 @@ class Builder:
         [print(f'train aug: {aug}') for aug in augs]
         return albu.Compose(augs)
 
+
     def get_test_augs(self):
+
         augs = []
         for i in range(len(self.cfg.augs.test)):
             name = self.cfg['augs']['test'][i]['name']
@@ -51,10 +57,11 @@ class Builder:
         [print(f'test aug: {aug}') for aug in augs]
         return albu.Compose(augs)
 
+
     def get_dataloader(self):
-        dataset_name = self.cfg.dataset.name
-        Dataset = getattr(stad.datasets, dataset_name)
-            
+        
+        print(f'Dataset: {self.cfg.dataset.name}')
+        Dataset = getattr(stad.datasets, self.cfg.dataset.name)
         dataset = Dataset(img_dir=Path(self.cfg.dataset.path),
                           augs=self.train_augs)
 
@@ -63,7 +70,9 @@ class Builder:
                                 shuffle=True)
         return dataloader
 
+
     def get_optimizer(self):
+
         parameters = self.school.student.parameters()
         lr = self.cfg.optim.lr
         weight_decay = self.cfg.optim.weight_decay
@@ -72,13 +81,16 @@ class Builder:
                                      weight_decay=weight_decay)
         return optimizer
 
+
     def get_criterion(self):
+
         return torch.nn.MSELoss(reduction='mean')
+
 
     def run_train(self):
         
         self.school.teacher.eval()
-        for epoch in tqdm(range(self.cfg.epochs)):
+        for epoch in tqdm(range(self.cfg.train.epochs)):
             for img in self.dataloader:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
@@ -87,21 +99,20 @@ class Builder:
                 loss.backward()
                 self.optimizer.step()
 
+
     def run_inference(self):
+        
         img_path = self.cfg.inference.img.path
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        mask_path = self.cfg.inference.mask.path
-        mask = cv2.imread(mask_path)
-        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-
-        anomaly_map = np.zeros((900, 900))
+        h, w, c = img.shape
+        anomaly_map = np.zeros((h, w))
 
         self.school.teacher.eval()
         self.school.student.eval()
-        for i in tqdm(range(64, 900-64)):
-            for j in range(64, 900-64):
+        for i in tqdm(range(64, h-64)):
+            for j in range(64, w-64):
                 patch = img[i-64:i+64, j-64:j+64]
                 sample = self.test_augs(image=patch)
                 patch = sample['image']
@@ -114,28 +125,15 @@ class Builder:
 
         plt.figure(figsize=(12, 8))
 
-        plt.subplot(231)
+        plt.subplot(131)
         plt.imshow(img)
         plt.axis('off')
 
-        plt.subplot(232)
-        plt.imshow(mask)
-        plt.axis('off')
-
-        plt.subplot(233)
-        plt.imshow(img)
-        plt.imshow(mask, alpha=0.5)
-        plt.axis('off')
-
-        plt.subplot(234)
-        plt.imshow(img)
-        plt.axis('off')
-
-        plt.subplot(235)
+        plt.subplot(132)
         plt.imshow(anomaly_map)
         plt.axis('off')
 
-        plt.subplot(236)
+        plt.subplot(133)
         plt.imshow(img)
         plt.imshow(anomaly_map, alpha=0.5)
         plt.axis('off')
