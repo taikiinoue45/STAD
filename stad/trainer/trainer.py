@@ -105,6 +105,7 @@ class Trainer:
         img_path = self.cfg.inference.img.path
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img[320:800, 500:2000]
 
         h, w, c = img.shape
         anomaly_map = np.zeros((h, w))

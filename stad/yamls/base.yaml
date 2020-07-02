@@ -41,8 +41,8 @@ train:
 
 inference:
   img:
-    path: /app/github/data/H_body_anomaly/1_2020_0610_093341[3].bmp
+    path: /app/github/data/H_body_anomaly/63_2020_0610_131357[5].bmp
   mask:
-    path: /app/github/data/H_body_anomaly/1_2020_0610_093341[3].bmp
+    path: /app/github/data/H_body_anomaly/63_2020_0610_131357[5].bmp
   savefig:
-    path: /app/github/output.png
+    path: /app/github/63_2020_0610_131357[5]_output.png
