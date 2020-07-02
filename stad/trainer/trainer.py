@@ -13,6 +13,8 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from pathlib import Path
 from tqdm import tqdm
+from torch2trt import torch2trt
+
 
 
 class Trainer:
@@ -27,6 +29,10 @@ class Trainer:
         self.school = self.school.to(self.cfg.device)
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
+
+        dummy_x = torch.ones((1, 3, 128, 128)).to(self.cfg.device)
+        self.school.teacher = torch2trt(self.school.teacher, [dummy_x])
+        print('---- Finish converting to TensorRT ----')
         
         
     def get_school(self):
