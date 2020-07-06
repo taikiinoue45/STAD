@@ -62,7 +62,7 @@ Next, I’m showing the anomaly map from `broken_small` image. If the anomalies 
 ## 2. Roadmap
 #### Accelerate Training and Inference
 - [x] TensorRT support
-- [ ] [Fast dense local feature extraction](https://www.dfki.de/fileadmin/user_upload/import/9245_FastCNNFeature_BMVC.pdf)
+- [ ] [Fast dense local feature extraction](https://github.com/TaikiInoue/FDFE)
 #### Improve the Performance
 - [ ] An ensemble of student networks
 - [ ] Multiscale prediction
