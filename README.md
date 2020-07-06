@@ -1,4 +1,4 @@
-## STAD (Student-Teacher Anomaly Detection)
+# STAD (Student-Teacher Anomaly Detection)
 Pytorch implementation of the paper [Uninformed Students: Student-Teacher Anomaly Detection with Discriminative Latent Embeddings](https://arxiv.org/abs/1911.02357) by Paul Bergmann.   
   
 Unsupervised anomaly segmentation is a desirable and challenging task in many domains of computer vision. Existing works mainly focus on generative algorithms such as Generative Adversarial Networks (GANs) or Variational Autoencoders (VAEs). These detect anomalies using per-pixel reconstruction errors or by evaluating the density obtained from the model’s probability distribution. This has been shown to be problematic due to inaccurate reconstructions or poorly calibrated likelihoods
@@ -9,6 +9,8 @@ In this paper, a novel framework is proposed for unsupervised anomaly segmentati
 
 ## 1. Re-Implementation
 Unfortunately, the official implementation is not published. Therefore I tried to re-implement it from scratch.
+
+<br>
 
 ### 1-1. MNIST Dataset
 #### ■ Training the Student Network  
