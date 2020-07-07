@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import albumentations as albu
 
 from pathlib import Path
@@ -30,19 +31,20 @@ class MVTecDataset(Dataset):
         img_path = str(self.img_paths[idx])
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        arr = img
 
         if self.is_anomaly:
             mask_path = str(self.mask_paths[idx])
             mask = cv2.imread(mask_path)
             mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
         else:
-            mask = None
+            mask = np.zeros(img.shape)
 
         if self.augs:
             sample = self.augs(image=img)
-            img = sample['image']
+            tsr = sample['image']
             
-        return img, mask
+        return tsr, arr, mask
 
     def __len__(self) -> int:
 

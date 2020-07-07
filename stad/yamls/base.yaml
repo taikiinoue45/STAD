@@ -1,11 +1,11 @@
 device: cuda:0
-&patch_size: 128
+patch_size: 128
 
 dataset:
-  name: SomicDataset
+  name: MVTecDataset
   train:
     img: /app/github/data/bottle/train/good
-    mask:
+    mask: 
   test:
     normal:
       img: /app/github/data/bottle/test/good
@@ -21,8 +21,8 @@ augs:
       p: 0.5
   - name: RandomCrop
     args:
-      height: *patch_size
-      width: *patch_size
+      height: 128
+      width: 128
       always_apply: True
       p: 1
   - name: Normalize
@@ -44,7 +44,7 @@ criterion:
   name: MSELoss
 
 train:
-  epochs: 1000
+  epochs: 2
   batch_size: 1
   teacher_pth_path: /dgx/inoue/teacher.pth
   student_pth_path: /dgx/inoue/student.pth

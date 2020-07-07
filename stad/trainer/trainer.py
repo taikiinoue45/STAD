@@ -27,14 +27,14 @@ class Trainer:
 
         self.train_dataloader = self.get_dataloader(
             img_dir=self.cfg.dataset.train.img,
-            mask_dir=self.cfg.dataset.train.mask,
+            mask_dir='',
             augs=self.train_augs,
             is_anomaly=False
         )
 
         self.test_normal_dataloader = self.get_dataloader(
             img_dir=self.cfg.dataset.test.normal.img,
-            mask_dir=self.cfg.dataset.test.normal.mask,
+            mask_dir='',
             augs=self.test_augs,
             is_anomaly=False
         )
@@ -87,11 +87,10 @@ class Trainer:
                        augs: albu.Compose,
                        is_anomaly: bool):
         
-        print(f'Dataset: {self.cfg.dataset.name}')
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
         
-        dataset = Dataset(img_dir=img_dir, 
-                          mask_dir=mask_dir, 
+        dataset = Dataset(img_dir=Path(img_dir), 
+                          mask_dir=Path(mask_dir), 
                           augs=augs,
                           is_anomaly=is_anomaly)
                           
@@ -121,7 +120,7 @@ class Trainer:
         
         self.school.teacher.eval()
         for epoch in tqdm(range(self.cfg.train.epochs)):
-            for img in self.train_dataloader:
+            for img, arr, mask in self.train_dataloader:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
@@ -138,45 +137,51 @@ class Trainer:
         patch_size = self.cfg.patch_size
 
         # Compute anomaly map of anomaly images
-        for i, (img, mask) in tqdm(enumerate(self.test_anomaly_dataloader)):
+        for i, (img, arr, mask) in enumerate(self.test_anomaly_dataloader):
+
+            print(f'{i+1}/{len(self.test_anomaly_dataloader)}')
             
-            img.to(self.cfg.device)
-            h, w, c = img.shape
+            b, c, h, w = img.shape
             anomaly_map = np.zeros((h, w))
 
             for j in tqdm(range(0, h-patch_size)):
                 for k in range(0, w-patch_size):
 
-                    patch = img[j:j+patch_size, k:k+patch_size]
+                    patch = img[:, :, j:j+patch_size, k:k+patch_size]
+                    patch = patch.to(self.cfg.device)
                     surrogate_label, pred = self.school(patch)
                     loss = self.criterion(pred, surrogate_label)
                     anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
             
-            self.savefig_anomaly_map(img, 
+            savefig_path = f'{self.cfg.inference.savefig.normal}/{str(i).zfill(3)}.png'
+            self.savefig_anomaly_map(arr, 
                                      mask, 
                                      anomaly_map,
-                                     self.cfg.inference.savefig.normal)
+                                     savefig_path)
 
 
         # Compute anomaly map of normal images
-        for i, (img, mask) in tqdm(enumerate(self.test_normal_dataloader)):
+        for i, (img, arr, mask) in enumerate(self.test_normal_dataloader):
+
+            print(f'{i+1}/{len(self.test_anomaly_dataloader)}')
             
-            img.to(self.cfg.device)
-            h, w, c = img.shape
+            b, c, h, w = img.shape
             anomaly_map = np.zeros((h, w))
 
             for j in tqdm(range(0, h-patch_size)):
                 for k in range(0, w-patch_size):
 
-                    patch = img[j:j+patch_size, k:k+patch_size]
+                    patch = img[:, :, j:j+patch_size, k:k+patch_size]
+                    patch = patch.to(self.cfg.device)
                     surrogate_label, pred = self.school(patch)
                     loss = self.criterion(pred, surrogate_label)
                     anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
 
-            self.savefig_anomaly_map(img,
+            savefig_path = f'{self.cfg.inference.savefig.anomaly}/{str(i).zfill(3)}.png'
+            self.savefig_anomaly_map(arr,
                                      mask,
                                      anomaly_map,
-                                     self.cfg.inference.savefig.anomaly)
+                                     savefig_path)
 
 
     def savefig_anomaly_map(self,
@@ -185,19 +190,35 @@ class Trainer:
                             anomaly_map,
                             savefig_path):
 
+            img = img.squeeze()
+            mask = mask.squeeze()
+
             plt.figure(figsize=(12, 8))
 
-            plt.subplot(131)
+            plt.subplot(231)
             plt.imshow(img)
             plt.axis('off')
 
-            plt.subplot(132)
+            plt.subplot(232)
             plt.imshow(anomaly_map)
             plt.axis('off')
 
-            plt.subplot(133)
+            plt.subplot(233)
             plt.imshow(img)
             plt.imshow(anomaly_map, alpha=0.5)
+            plt.axis('off')
+
+            plt.subplot(234)
+            plt.imshow(img)
+            plt.axis('off')
+
+            plt.subplot(235)
+            plt.imshow(mask)
+            plt.axis('off')
+
+            plt.subplot(236)
+            plt.imshow(img)
+            plt.imshow(mask, alpha=0.5)
             plt.axis('off')
 
             plt.savefig(savefig_path)
