@@ -24,16 +24,33 @@ class Trainer:
         self.cfg = cfg
         self.train_augs = self.get_train_augs()
         self.test_augs = self.get_test_augs()
-        self.dataloader = self.get_dataloader()
+
+        self.train_dataloader = self.get_dataloader(
+            img_dir=self.cfg.dataset.train.img,
+            mask_dir=self.cfg.dataset.train.mask,
+            augs=self.train_augs,
+            is_anomaly=False
+        )
+
+        self.test_normal_dataloader = self.get_dataloader(
+            img_dir=self.cfg.dataset.test.normal.img,
+            mask_dir=self.cfg.dataset.test.normal.mask,
+            augs=self.test_augs,
+            is_anomaly=False
+        )
+
+        self.test_anomaly_dataloader = self.get_dataloader(
+            img_dir=self.cfg.dataset.test.anomaly.img,
+            mask_dir=self.cfg.dataset.test.anomaly.mask,
+            augs=self.test_augs,
+            is_anomaly=True
+        )
+
         self.school = self.get_school()
         self.school = self.school.to(self.cfg.device)
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
 
-        dummy_x = torch.ones((1, 3, 128, 128)).to(self.cfg.device)
-        self.school.teacher = torch2trt(self.school.teacher, [dummy_x])
-        print('---- Finish converting to TensorRT ----')
-        
         
     def get_school(self):
 
@@ -64,16 +81,23 @@ class Trainer:
         return albu.Compose(augs)
 
 
-    def get_dataloader(self):
+    def get_dataloader(self,
+                       img_dir: str,
+                       mask_dir: str,
+                       augs: albu.Compose,
+                       is_anomaly: bool):
         
         print(f'Dataset: {self.cfg.dataset.name}')
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
-        dataset = Dataset(img_dir=Path(self.cfg.dataset.path),
-                          augs=self.train_augs)
-
+        
+        dataset = Dataset(img_dir=img_dir, 
+                          mask_dir=mask_dir, 
+                          augs=augs,
+                          is_anomaly=is_anomaly)
+                          
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=1,
-                                shuffle=True)
+                                shuffle=False)
         return dataloader
 
 
@@ -97,7 +121,7 @@ class Trainer:
         
         self.school.teacher.eval()
         for epoch in tqdm(range(self.cfg.train.epochs)):
-            for img in self.dataloader:
+            for img in self.train_dataloader:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
@@ -108,41 +132,72 @@ class Trainer:
 
     def run_inference(self):
         
-        img_path = self.cfg.inference.img.path
-        img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img[320:800, 500:2000]
-
-        h, w, c = img.shape
-        anomaly_map = np.zeros((h, w))
-
         self.school.teacher.eval()
         self.school.student.eval()
-        for i in tqdm(range(64, h-64)):
-            for j in range(64, w-64):
-                patch = img[i-64:i+64, j-64:j+64]
-                sample = self.test_augs(image=patch)
-                patch = sample['image']
-                patch = patch.unsqueeze(0)
-                patch = patch.to(self.cfg.device)
-                
-                surrogate_label, pred = self.school(patch)
-                loss = self.criterion(pred, surrogate_label)
-                anomaly_map[i-64:i+64, j-64:j+64] = loss.item()
 
-        plt.figure(figsize=(12, 8))
+        patch_size = self.cfg.patch_size
 
-        plt.subplot(131)
-        plt.imshow(img)
-        plt.axis('off')
+        # Compute anomaly map of anomaly images
+        for i, (img, mask) in tqdm(enumerate(self.test_anomaly_dataloader)):
+            
+            img.to(self.cfg.device)
+            h, w, c = img.shape
+            anomaly_map = np.zeros((h, w))
 
-        plt.subplot(132)
-        plt.imshow(anomaly_map)
-        plt.axis('off')
+            for j in tqdm(range(0, h-patch_size)):
+                for k in range(0, w-patch_size):
 
-        plt.subplot(133)
-        plt.imshow(img)
-        plt.imshow(anomaly_map, alpha=0.5)
-        plt.axis('off')
+                    patch = img[j:j+patch_size, k:k+patch_size]
+                    surrogate_label, pred = self.school(patch)
+                    loss = self.criterion(pred, surrogate_label)
+                    anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
+            
+            self.savefig_anomaly_map(img, 
+                                     mask, 
+                                     anomaly_map,
+                                     self.cfg.inference.savefig.normal)
 
-        plt.savefig(self.cfg.inference.savefig.path)
+
+        # Compute anomaly map of normal images
+        for i, (img, mask) in tqdm(enumerate(self.test_normal_dataloader)):
+            
+            img.to(self.cfg.device)
+            h, w, c = img.shape
+            anomaly_map = np.zeros((h, w))
+
+            for j in tqdm(range(0, h-patch_size)):
+                for k in range(0, w-patch_size):
+
+                    patch = img[j:j+patch_size, k:k+patch_size]
+                    surrogate_label, pred = self.school(patch)
+                    loss = self.criterion(pred, surrogate_label)
+                    anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
+
+            self.savefig_anomaly_map(img,
+                                     mask,
+                                     anomaly_map,
+                                     self.cfg.inference.savefig.anomaly)
+
+
+    def savefig_anomaly_map(self,
+                            img,
+                            mask,
+                            anomaly_map,
+                            savefig_path):
+
+            plt.figure(figsize=(12, 8))
+
+            plt.subplot(131)
+            plt.imshow(img)
+            plt.axis('off')
+
+            plt.subplot(132)
+            plt.imshow(anomaly_map)
+            plt.axis('off')
+
+            plt.subplot(133)
+            plt.imshow(img)
+            plt.imshow(anomaly_map, alpha=0.5)
+            plt.axis('off')
+
+            plt.savefig(savefig_path)

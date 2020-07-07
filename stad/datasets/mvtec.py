@@ -9,10 +9,20 @@ class MVTecDataset(Dataset):
 
     def __init__(self,
                  img_dir: Path,
-                 augs: albu.Compose = None) -> None:
+                 mask_dir: Path,
+                 augs: albu.Compose,
+                 is_anomaly: bool) -> None:
 
-        self.img_paths = [p for p in img_dir.glob('*.png')]
+        self.img_paths = []
+        self.mask_paths = []
+        for img_path in img_dir.glob('*.png'):
+            mask_path = mask_dir / f'{img_path.stem}_mask.png'
+            self.img_paths.append(img_path)
+            self.mask_paths.append(mask_path)
+
         self.augs = augs
+        self.is_anomaly = is_anomaly
+
 
     def __getitem__(self,
                     idx: int):
@@ -20,13 +30,19 @@ class MVTecDataset(Dataset):
         img_path = str(self.img_paths[idx])
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img[320:800, 500:2000]
-        
+
+        if self.is_anomaly:
+            mask_path = str(self.mask_paths[idx])
+            mask = cv2.imread(mask_path)
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+        else:
+            mask = None
+
         if self.augs:
             sample = self.augs(image=img)
             img = sample['image']
             
-        return img
+        return img, mask
 
     def __len__(self) -> int:
 

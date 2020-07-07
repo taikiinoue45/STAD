@@ -1,8 +1,18 @@
 device: cuda:0
+&patch_size: 128
 
 dataset:
   name: SomicDataset
-  path: /app/github/data/H_body_normal
+  train:
+    img: /app/github/data/bottle/train/good
+    mask:
+  test:
+    normal:
+      img: /app/github/data/bottle/test/good
+      mask:
+    anomaly:
+      img: /app/github/data/bottle/test/broken_small
+      mask: /app/github/data/bottle/ground_truth/broken_small
 
 augs:
   train:
@@ -11,8 +21,8 @@ augs:
       p: 0.5
   - name: RandomCrop
     args:
-      height: 128
-      width: 128
+      height: *patch_size
+      width: *patch_size
       always_apply: True
       p: 1
   - name: Normalize
@@ -40,9 +50,6 @@ train:
   student_pth_path: /dgx/inoue/student.pth
 
 inference:
-  img:
-    path: /app/github/data/H_body_anomaly/63_2020_0610_131357[5].bmp
-  mask:
-    path: /app/github/data/H_body_anomaly/63_2020_0610_131357[5].bmp
   savefig:
-    path: /app/github/63_2020_0610_131357[5]_output.png
+    normal: /app/github/STAD/anomaly_maps/normal
+    anomaly: /app/github/STAD/anomaly_maps/anomaly
