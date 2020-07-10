@@ -16,6 +16,7 @@ class MVTecDataset(Dataset):
 
         self.img_paths = []
         self.mask_paths = []
+
         for img_path in img_dir.glob('*.png'):
             mask_path = mask_dir / f'{img_path.stem}_mask.png'
             self.img_paths.append(img_path)

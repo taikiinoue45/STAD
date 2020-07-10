@@ -13,7 +13,6 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from pathlib import Path
 from tqdm import tqdm
-from torch2trt import torch2trt
 
 
 
@@ -50,6 +49,7 @@ class Trainer:
         self.school = self.school.to(self.cfg.device)
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
+    
 
         
     def get_school(self):
@@ -135,7 +135,7 @@ class Trainer:
         self.school.student.eval()
 
         patch_size = self.cfg.patch_size
-
+        
         # Compute anomaly map of anomaly images
         for i, (img, arr, mask) in enumerate(self.test_anomaly_dataloader):
 
@@ -151,9 +151,9 @@ class Trainer:
                     patch = patch.to(self.cfg.device)
                     surrogate_label, pred = self.school(patch)
                     loss = self.criterion(pred, surrogate_label)
-                    anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
+                    anomaly_map[j+patch_size//2, k+patch_size//2] = loss.item()
             
-            savefig_path = f'{self.cfg.inference.savefig.normal}/{str(i).zfill(3)}.png'
+            savefig_path = f'{self.cfg.inference.savefig.anomaly}/{str(i).zfill(3)}.png'
             self.savefig_anomaly_map(arr, 
                                      mask, 
                                      anomaly_map,
@@ -175,9 +175,9 @@ class Trainer:
                     patch = patch.to(self.cfg.device)
                     surrogate_label, pred = self.school(patch)
                     loss = self.criterion(pred, surrogate_label)
-                    anomaly_map[j:j+patch_size, k:k+patch_size] = loss.item()
+                    anomaly_map[j+patch_size//2, k+patch_size//2] = loss.item()
 
-            savefig_path = f'{self.cfg.inference.savefig.anomaly}/{str(i).zfill(3)}.png'
+            savefig_path = f'{self.cfg.inference.savefig.normal}/{str(i).zfill(3)}.png'
             self.savefig_anomaly_map(arr,
                                      mask,
                                      anomaly_map,
