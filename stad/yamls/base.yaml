@@ -1,18 +1,18 @@
-device: cuda:0
+device: cuda:2
 patch_size: 128
 
 dataset:
   name: MVTecDataset
   train:
-    img: /app/github/data/bottle/train/good
+    img: /dgx/shared/momo/Data/MVTec/bottle/train/good
     mask: 
   test:
     normal:
-      img: /app/github/data/bottle/test/good
+      img: /dgx/shared/momo/Data/MVTec/bottle/test/good
       mask:
     anomaly:
-      img: /app/github/data/bottle/test/broken_small
-      mask: /app/github/data/bottle/ground_truth/broken_small
+      img: /dgx/shared/momo/Data/MVTec/bottle/test/broken_small
+      mask: /dgx/shared/momo/Data/MVTec/bottle/ground_truth/broken_small
 
 augs:
   train:
@@ -46,10 +46,9 @@ criterion:
 train:
   epochs: 2
   batch_size: 1
-  teacher_pth_path: /dgx/inoue/teacher.pth
-  student_pth_path: /dgx/inoue/student.pth
 
-inference:
-  savefig:
-    normal: /app/github/STAD/anomaly_maps/normal
-    anomaly: /app/github/STAD/anomaly_maps/anomaly
+test:
+  batch_size: 4
+  output_dir:
+    normal: /home/inoue/sshfs_folder/STAD/MVTec/bottle/normal
+    anomaly: /home/inoue/sshfs_folder/STAD/MVTec/bottle/anomaly

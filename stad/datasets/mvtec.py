@@ -32,7 +32,7 @@ class MVTecDataset(Dataset):
         img_path = str(self.img_paths[idx])
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        arr = img
+        raw_img = img
 
         if self.is_anomaly:
             mask_path = str(self.mask_paths[idx])
@@ -43,9 +43,9 @@ class MVTecDataset(Dataset):
 
         if self.augs:
             sample = self.augs(image=img)
-            tsr = sample['image']
+            img = sample['image']
             
-        return tsr, arr, mask
+        return img, raw_img, mask
 
     def __len__(self) -> int:
 
