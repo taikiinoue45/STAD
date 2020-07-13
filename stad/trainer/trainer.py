@@ -1,10 +1,8 @@
-import sys
-sys.path.append('/app/github/STAD/')
-
 import stad.datasets
 import stad.models
 import torch
 import cv2
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import albumentations as albu
@@ -14,6 +12,8 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from tqdm import tqdm
 
+log = logging.getLogger(__name__)
+
 
 
 class Trainer:
@@ -21,19 +21,20 @@ class Trainer:
     def __init__(self, cfg):
 
         self.cfg = cfg
-        self.train_augs = self.get_train_augs()
-        self.test_augs = self.get_test_augs()
+        
+        self.train_augs = self.get_augs(train_or_test='train')
+        self.test_augs = self.get_augs(train_or_test='test')
 
         self.train_dataloader = self.get_dataloader(
             img_dir=self.cfg.dataset.train.img,
-            mask_dir='',
+            mask_dir=self.cfg.dataset.train.mask,
             augs=self.train_augs,
             is_anomaly=False
         )
 
         self.test_normal_dataloader = self.get_dataloader(
             img_dir=self.cfg.dataset.test.normal.img,
-            mask_dir='',
+            mask_dir=self.cfg.dataset.test.normal.mask,
             augs=self.test_augs,
             is_anomaly=False
         )
@@ -57,27 +58,16 @@ class Trainer:
         return stad.models.School()
 
 
-    def get_train_augs(self):
-
+    def get_augs(self,
+                 train_or_test: str):
+        
         augs = []
-        for i in range(len(self.cfg.augs.train)):
-            name = self.cfg['augs']['train'][i]['name']
+        for i in range(len(self.cfg['augs'][train_or_test])):
+            name = self.cfg['augs'][train_or_test][i]['name']
             fn = getattr(albu, name)
-            augs.append(fn(**self.cfg['augs']['train'][i]['args']))
+            augs.append(fn(**self.cfg['augs'][train_or_test][i]['args']))
         augs.append(ToTensorV2())
-        [print(f'train aug: {aug}') for aug in augs]
-        return albu.Compose(augs)
-
-
-    def get_test_augs(self):
-
-        augs = []
-        for i in range(len(self.cfg.augs.test)):
-            name = self.cfg['augs']['test'][i]['name']
-            fn = getattr(albu, name)
-            augs.append(fn(**self.cfg['augs']['test'][i]['args']))
-        augs.append(ToTensorV2())
-        [print(f'test aug: {aug}') for aug in augs]
+        
         return albu.Compose(augs)
 
 
@@ -114,30 +104,44 @@ class Trainer:
     def get_criterion(self):
 
         return torch.nn.MSELoss(reduction='mean')
+    
+    def load_school_pth(self):
+        
+        self.school.load_state_dict(torch.load(self.cfg.pretrained_models.school))
 
 
-    def run_train(self):
+    def run_train_student(self):
         
         self.school.teacher.eval()
-        for epoch in tqdm(range(self.cfg.train.epochs)):
-            for img, arr, mask in self.train_dataloader:
+        for epoch in range(self.cfg.train.epochs):
+            
+            loss_sum = 0
+            
+            for img, _, _ in self.train_dataloader:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
+                loss_sum += loss.item()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                
+            log.info(f'epoch: {epoch:04},  loss: {loss_sum / len(self.train_dataloader)}')
+        
+        # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+        # https://hydra.cc/docs/tutorial/working_directory
+        torch.save(self.school.state_dict(), 'school.pth')
 
 
     def compute_anomaly_map(self,
-                            dataloader,
-                            output_dir):
+                            dataloader: DataLoader,
+                            anomaly_or_normal: str):
         
         self.school.teacher.eval()
         self.school.student.eval()
         
         for i, (img, raw_img, mask) in enumerate(dataloader):
-                        
+            
             unfold = torch.nn.Unfold(
                 kernel_size=(self.cfg.patch_size, self.cfg.patch_size), 
                 stride=1)
@@ -164,6 +168,7 @@ class Trainer:
                 losses = losses.cpu().detach().numpy()
                 anomaly_map[start:end] = losses
                 
+                
             patch = patches[-remainder:, :, :, :]
             patch = patch.to(self.cfg.device)
             
@@ -182,14 +187,29 @@ class Trainer:
                                   (self.cfg.patch_size//2, self.cfg.patch_size//2-1)), 
                                  'constant')
             
-            cv2.imwrite(str(output_dir / f'{i:02}_img.jpg'), raw_img[0].detach().numpy())
-            cv2.imwrite(str(output_dir / f'{i:02}_anomaly_map.png'), anomaly_map)
-            cv2.imwrite(str(output_dir / f'{i:02}_mask.png'), mask[0].detach().numpy())
+            
+            # Save raw_img, mask and anomaly map
+            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+            # https://hydra.cc/docs/tutorial/working_directory
+            
+            raw_img = raw_img.squeeze().detach().numpy()
+            cv2.imwrite(f'{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
+            
+            mask = mask.squeeze().detach().numpy()
+            cv2.imwrite(f'{anomaly_or_normal}/{i:02}_mask.png', mask)
+            
+            with open(f'{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
+                np.save(f, anomaly_map)
+
+            del patches
 
             
     def run_test(self):
         
-        self.compute_anomaly_map(self.test_anomaly_dataloader, Path(self.cfg.test.output_dir.anomaly))
-        self.compute_anomaly_map(self.test_normal_dataloader, Path(self.cfg.test.output_dir.normal))
+        self.compute_anomaly_map(dataloader=self.test_anomaly_dataloader, 
+                                 anomaly_or_normal='anomaly')
+        
+        self.compute_anomaly_map(dataloader=self.test_normal_dataloader, 
+                                 anomaly_or_normal='normal')
         
         
