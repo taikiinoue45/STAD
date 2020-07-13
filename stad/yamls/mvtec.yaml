@@ -1,0 +1,56 @@
+device: 'cuda:2'
+patch_size: 128
+
+dataset:
+  name: 'MVTecDataset'
+  train:
+    img: '/dgx/shared/momo/Data/MVTec/bottle/train/good'
+    mask: ''
+  test:
+    normal:
+      img: '/dgx/shared/momo/Data/MVTec/bottle/test/good'
+      mask: ''
+    anomaly:
+      img: '/dgx/shared/momo/Data/MVTec/bottle/test/broken_small'
+      mask: '/dgx/shared/momo/Data/MVTec/bottle/ground_truth/broken_small'
+
+augs:
+  train:
+  - name: 'HorizontalFlip'
+    args:
+      p: 0.5
+  - name: 'RandomCrop'
+    args:
+      height: 128
+      width: 128
+      always_apply: True
+      p: 1
+  - name: 'Normalize'
+    args:
+      always_apply: True
+      p: 1
+  test:
+  - name: 'Normalize'
+    args:
+      always_apply: True
+      p: 1
+
+optim:
+  name: 'Adam'
+  lr: 0.0002
+  weight_decay: 0.00001
+
+criterion:
+  name: 'MSELoss'
+
+pretrained_models:
+  school:
+  student:
+  teacher:
+
+train:
+  epochs: 1000
+  batch_size: 1
+
+test:
+  batch_size: 128

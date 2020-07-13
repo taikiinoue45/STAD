@@ -1,0 +1,57 @@
+device: 'cuda:3'
+patch_size: 128
+
+dataset:
+  name: 'SomicDataset'
+  train:
+    img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02/images'
+    mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02/masks'
+  test:
+    normal:
+      img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02/images'
+      mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02/masks'
+    anomaly:
+      img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02/images'
+      mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02/masks'
+
+augs:
+  train:
+  - name: 'HorizontalFlip'
+    args:
+      p: 0.5
+  - name: 'RandomCrop'
+    args:
+      height: 128
+      width: 128
+      always_apply: True
+      p: 1
+  - name: 'Normalize'
+    args:
+      always_apply: True
+      p: 1
+  test:
+  - name: 'Normalize'
+    args:
+      always_apply: True
+      p: 1
+
+optim:
+  name: 'Adam'
+  lr: 0.0002
+  weight_decay: 0.00001
+
+criterion:
+  name: 'MSELoss'
+
+pretrained_models:
+  school:
+  student:
+  teacher:
+
+train:
+  epochs: 1000
+  batch_size: 1
+
+test:
+  batch_size: 64
+  
