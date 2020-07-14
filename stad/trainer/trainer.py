@@ -5,8 +5,8 @@ import cv2
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-import albumentations as albu
 
+from stad import albu
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from pathlib import Path
@@ -24,22 +24,24 @@ class Trainer:
         
         self.train_augs = self.get_augs(train_or_test='train')
         self.test_augs = self.get_augs(train_or_test='test')
-
-        self.train_dataloader = self.get_dataloader(
+        
+        self.dataloader = {}
+        
+        self.dataloader['train'] = self.get_dataloader(
             img_dir=self.cfg.dataset.train.img,
             mask_dir=self.cfg.dataset.train.mask,
             augs=self.train_augs,
             is_anomaly=False
         )
 
-        self.test_normal_dataloader = self.get_dataloader(
+        self.dataloader['normal'] = self.get_dataloader(
             img_dir=self.cfg.dataset.test.normal.img,
             mask_dir=self.cfg.dataset.test.normal.mask,
             augs=self.test_augs,
             is_anomaly=False
         )
 
-        self.test_anomaly_dataloader = self.get_dataloader(
+        self.dataloader['anomaly'] = self.get_dataloader(
             img_dir=self.cfg.dataset.test.anomaly.img,
             mask_dir=self.cfg.dataset.test.anomaly.mask,
             augs=self.test_augs,
@@ -113,11 +115,11 @@ class Trainer:
     def run_train_student(self):
         
         self.school.teacher.eval()
-        for epoch in range(self.cfg.train.epochs):
+        for epoch in range(1, self.cfg.train.epochs+1):
             
             loss_sum = 0
             
-            for img, _, _ in self.train_dataloader:
+            for img, _, _ in self.dataloader['train']:
                 img = img.to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
@@ -126,90 +128,89 @@ class Trainer:
                 loss.backward()
                 self.optimizer.step()
                 
-            log.info(f'epoch: {epoch:04},  loss: {loss_sum / len(self.train_dataloader)}')
+#                 if epoch % self.cfg.train.mini_epochs == 0:
+#                     anomaly_map = self.compute_anomaly_map(img)
+            
+            epoch_loss = loss_sum / len(self.dataloader['train'])
+            log.info(f'epoch: {epoch:04},  loss: {epoch_loss}')
         
         # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
         # https://hydra.cc/docs/tutorial/working_directory
         torch.save(self.school.state_dict(), 'school.pth')
 
+    
+    def compute_anomaly_map(self, img):
+        
+        unfold = torch.nn.Unfold(
+            kernel_size=(self.cfg.patch_size, self.cfg.patch_size), 
+            stride=self.cfg.test.unfold_stride)
+        patches = unfold(img)
+        patches = patches.permute(0, 2, 1)
+        patches = patches.view(-1, 3, self.cfg.patch_size, self.cfg.patch_size)
+        
+        anomaly_map = np.zeros(patches.shape[0])
+        quotient, remainder = divmod(patches.shape[0], self.cfg.test.batch_size)
 
-    def compute_anomaly_map(self,
-                            dataloader: DataLoader,
-                            anomaly_or_normal: str):
+        for i in tqdm(range(quotient)):
+            
+            start = i * self.cfg.test.batch_size
+            end = start + self.cfg.test.batch_size
+
+            patch = patches[start:end, :, :, :]
+            patch = patch.to(self.cfg.device)
+
+            surrogate_label, pred = self.school(patch)
+
+            losses = pred - surrogate_label
+            losses = losses.view(self.cfg.test.batch_size, -1)
+            losses = losses.pow(2).mean(1)
+            losses = losses.cpu().detach().numpy()
+            
+            anomaly_map[start:end] = losses
+            
+        patch = patches[-remainder:, :, :, :]
+        patch = patch.to(self.cfg.device)
+
+        surrogate_label, pred = self.school(patch)
+
+        losses = pred - surrogate_label
+        losses = losses.view(remainder, -1)
+        losses = losses.pow(2).mean(1)
+        losses = losses.cpu().detach().numpy()
+        anomaly_map[-remainder:] = losses
+        
+        # img.shape -> (b, c, h, w)
+        _, _, img_h, img_w = img.shape
+        anomaly_map_h = int((img_h - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
+        anomaly_map_w = int((img_w - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
+        anomaly_map = anomaly_map.reshape((anomaly_map_h, anomaly_map_w))
+        anomaly_map = cv2.resize(anomaly_map, (img_h, img_w))
+        
+        del patches
+        
+        return anomaly_map
+
+    
+    
+    def run_test(self):
         
         self.school.teacher.eval()
         self.school.student.eval()
         
-        for i, (img, raw_img, mask) in enumerate(dataloader):
-            
-            unfold = torch.nn.Unfold(
-                kernel_size=(self.cfg.patch_size, self.cfg.patch_size), 
-                stride=1)
-            patches = unfold(img)
-            patches = patches.permute(0, 2, 1)
-            patches = patches.view(-1, 3, self.cfg.patch_size, self.cfg.patch_size)
-            
-            anomaly_map = np.zeros(patches.shape[0])
-            quotient, remainder = divmod(patches.shape[0], self.cfg.test.batch_size)
-            
-            for j in tqdm(range(quotient)):
-        
-                start = j * self.cfg.test.batch_size
-                end = start + self.cfg.test.batch_size
+        for anomaly_or_normal in ['anomaly', 'normal']:
+            for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
 
-                patch = patches[start:end, :, :, :]
-                patch = patch.to(self.cfg.device)
+                anomaly_map = self.compute_anomaly_map(img)
 
-                surrogate_label, pred = self.school(patch)
+                # Save raw_img, mask and anomaly map
+                # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+                # https://hydra.cc/docs/tutorial/working_directory
 
-                losses = pred - surrogate_label
-                losses = losses.view(self.cfg.test.batch_size, -1)
-                losses = losses.pow(2).mean(1)
-                losses = losses.cpu().detach().numpy()
-                anomaly_map[start:end] = losses
+                raw_img = raw_img.squeeze().detach().numpy()
+                mask = mask.squeeze().detach().numpy()
                 
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_mask.png', mask)                
                 
-            patch = patches[-remainder:, :, :, :]
-            patch = patch.to(self.cfg.device)
-            
-            surrogate_label, pred = self.school(patch)
-            
-            losses = pred - surrogate_label
-            losses = losses.view(remainder, -1)
-            losses = losses.pow(2).mean(1)
-            losses = losses.cpu().detach().numpy()
-            anomaly_map[-remainder:] = losses
-            
-            b, c, h, w = img.shape
-            anomaly_map = anomaly_map.reshape(h-self.cfg.patch_size+1, w-self.cfg.patch_size+1)
-            anomaly_map = np.pad(anomaly_map, 
-                                 ((self.cfg.patch_size//2, self.cfg.patch_size//2-1), 
-                                  (self.cfg.patch_size//2, self.cfg.patch_size//2-1)), 
-                                 'constant')
-            
-            
-            # Save raw_img, mask and anomaly map
-            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-            # https://hydra.cc/docs/tutorial/working_directory
-            
-            raw_img = raw_img.squeeze().detach().numpy()
-            cv2.imwrite(f'{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
-            
-            mask = mask.squeeze().detach().numpy()
-            cv2.imwrite(f'{anomaly_or_normal}/{i:02}_mask.png', mask)
-            
-            with open(f'{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
-                np.save(f, anomaly_map)
-
-            del patches
-
-            
-    def run_test(self):
-        
-        self.compute_anomaly_map(dataloader=self.test_anomaly_dataloader, 
-                                 anomaly_or_normal='anomaly')
-        
-        self.compute_anomaly_map(dataloader=self.test_normal_dataloader, 
-                                 anomaly_or_normal='normal')
-        
-        
+                with open(f'test/{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
+                    np.save(f, anomaly_map)

@@ -1,4 +1,4 @@
-device: 'cuda:2'
+device: 'cuda:3'
 patch_size: 128
 
 dataset:
@@ -19,7 +19,7 @@ augs:
   - name: 'HorizontalFlip'
     args:
       p: 0.5
-  - name: 'RandomCrop'
+  - name: 'ProbabilisticCrop'
     args:
       height: 128
       width: 128
@@ -44,13 +44,15 @@ criterion:
   name: 'MSELoss'
 
 pretrained_models:
-  school:
+  school: '/home/inoue/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
   student:
   teacher:
 
 train:
   epochs: 1000
+  mini_epochs: 10
   batch_size: 1
 
 test:
   batch_size: 128
+  unfold_stride: 4

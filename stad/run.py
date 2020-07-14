@@ -4,11 +4,11 @@ import logging
 from stad.trainer import Trainer
 
 
-@hydra.main(config_path='/dgx/github/STAD/stad/yamls/somic.yaml')
+@hydra.main(config_path='/home/inoue/github/STAD/stad/yamls/mvtec.yaml')
 def my_app(cfg):
     
-    os.mkdir('normal')
-    os.mkdir('anomaly')
+    os.makedirs('test/normal')
+    os.makedirs('test/anomaly')
     
     trainer = Trainer(cfg)
     
@@ -18,6 +18,8 @@ def my_app(cfg):
         trainer.run_train_student()
         
     trainer.run_test()
+    
+    os.rename('.hydra', 'hydra')
 
 
 if __name__ == "__main__":
