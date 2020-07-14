@@ -28,24 +28,23 @@ class Trainer:
         self.dataloader = {}
         
         self.dataloader['train'] = self.get_dataloader(
-            img_dir=self.cfg.dataset.train.img,
-            mask_dir=self.cfg.dataset.train.mask,
-            augs=self.train_augs,
-            is_anomaly=False
+            data_dir=self.cfg.dataset.train.normal,
+            augs=self.train_augs
+        )
+        
+        self.dataloader['val'] = self.get_dataloader(
+            data_dir=self.cfg.dataset.val.normal,
+            augs=self.test_augs
         )
 
         self.dataloader['normal'] = self.get_dataloader(
-            img_dir=self.cfg.dataset.test.normal.img,
-            mask_dir=self.cfg.dataset.test.normal.mask,
-            augs=self.test_augs,
-            is_anomaly=False
+            data_dir=self.cfg.dataset.test.normal,
+            augs=self.test_augs
         )
 
         self.dataloader['anomaly'] = self.get_dataloader(
-            img_dir=self.cfg.dataset.test.anomaly.img,
-            mask_dir=self.cfg.dataset.test.anomaly.mask,
-            augs=self.test_augs,
-            is_anomaly=True
+            data_dir=self.cfg.dataset.test.anomaly,
+            augs=self.test_augs
         )
 
         self.school = self.get_school()
@@ -59,6 +58,7 @@ class Trainer:
 
         return stad.models.School()
 
+    
 
     def get_augs(self,
                  train_or_test: str):
@@ -72,26 +72,24 @@ class Trainer:
         
         return albu.Compose(augs)
 
+    
 
     def get_dataloader(self,
-                       img_dir: str,
-                       mask_dir: str,
-                       augs: albu.Compose,
-                       is_anomaly: bool):
+                       data_dir: str,
+                       augs: albu.Compose):
         
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
         
-        dataset = Dataset(img_dir=Path(img_dir), 
-                          mask_dir=Path(mask_dir), 
-                          augs=augs,
-                          is_anomaly=is_anomaly)
+        dataset = Dataset(data_dir=Path(data_dir), 
+                          augs=augs)
                           
         dataloader = DataLoader(dataset=dataset,
-                                batch_size=1,
+                                batch_size=self.cfg.train.batch_size,
                                 shuffle=False)
         return dataloader
 
 
+    
     def get_optimizer(self):
 
         parameters = self.school.student.parameters()
@@ -103,18 +101,24 @@ class Trainer:
         return optimizer
 
 
+    
     def get_criterion(self):
 
         return torch.nn.MSELoss(reduction='mean')
+    
+    
     
     def load_school_pth(self):
         
         self.school.load_state_dict(torch.load(self.cfg.pretrained_models.school))
 
 
+        
     def run_train_student(self):
         
+        self.school.student.train()        
         self.school.teacher.eval()
+        
         for epoch in range(1, self.cfg.train.epochs+1):
             
             loss_sum = 0
@@ -127,18 +131,89 @@ class Trainer:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                
-#                 if epoch % self.cfg.train.mini_epochs == 0:
-#                     anomaly_map = self.compute_anomaly_map(img)
-            
+                            
             epoch_loss = loss_sum / len(self.dataloader['train'])
             log.info(f'epoch: {epoch:04},  loss: {epoch_loss}')
-        
+            
+            if epoch % self.cfg.train.mini_epochs == 0:
+                self.run_val(epoch)
+                self.school.student.train()        
+                self.school.teacher.eval()
+
         # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
         # https://hydra.cc/docs/tutorial/working_directory
         torch.save(self.school.state_dict(), 'school.pth')
 
     
+    
+    def run_val(self, epoch: int):
+        
+        self.school.teacher.eval()
+        self.school.student.eval()
+        
+        cumulative_anomaly_map = np.array([])
+        
+        for i, (img, raw_img, mask) in enumerate(self.dataloader['val']):
+            
+            anomaly_map = self.compute_anomaly_map(img)
+            
+            if len(cumulative_anomaly_map) == 0:
+                cumulative_anomaly_map = anomaly_map
+            else:
+                cumulative_anomaly_map += anomaly_map
+
+            # Save raw_img, mask and anomaly map
+            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+            # https://hydra.cc/docs/tutorial/working_directory
+
+            raw_img = raw_img.squeeze().detach().numpy()
+            mask = mask.squeeze().detach().numpy()
+
+            cv2.imwrite(f'val/{epoch:04}_{i:02}_img.jpg', raw_img)
+            cv2.imwrite(f'val/{epoch:04}_{i:02}_mask.png', mask)                
+
+            with open(f'val/{epoch:04}_{i:02}_anomaly_map.npy', 'wb') as f:
+                np.save(f, anomaly_map)
+                
+        # Update anomaly_map in ProbabilisticCrop
+        for j, aug in enumerate(self.train_augs):
+            
+            if aug.__module__ == 'probabilistic_crop':
+                self.train_augs[j].anomaly_map = cumulative_anomaly_map
+        
+        # Re-create train dataloader to apply the updated train_augs
+        self.dataloader['train'] = self.get_dataloader(
+            data_dir=self.cfg.dataset.train.normal,
+            augs=self.train_augs
+        )
+
+            
+                   
+    def run_test(self):
+        
+        self.school.teacher.eval()
+        self.school.student.eval()
+        
+        for anomaly_or_normal in ['anomaly', 'normal']:
+            for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
+
+                anomaly_map = self.compute_anomaly_map(img)
+
+                # Save raw_img, mask and anomaly map
+                # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+                # https://hydra.cc/docs/tutorial/working_directory
+                
+                raw_img = raw_img.squeeze().detach().numpy()
+                mask = mask.squeeze().detach().numpy()
+                
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_mask.png', mask)                
+                
+                with open(f'test/{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
+                    np.save(f, anomaly_map)
+
+   
+
     def compute_anomaly_map(self, img):
         
         unfold = torch.nn.Unfold(
@@ -191,26 +266,3 @@ class Trainer:
         return anomaly_map
 
     
-    
-    def run_test(self):
-        
-        self.school.teacher.eval()
-        self.school.student.eval()
-        
-        for anomaly_or_normal in ['anomaly', 'normal']:
-            for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
-
-                anomaly_map = self.compute_anomaly_map(img)
-
-                # Save raw_img, mask and anomaly map
-                # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-                # https://hydra.cc/docs/tutorial/working_directory
-
-                raw_img = raw_img.squeeze().detach().numpy()
-                mask = mask.squeeze().detach().numpy()
-                
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_mask.png', mask)                
-                
-                with open(f'test/{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
-                    np.save(f, anomaly_map)

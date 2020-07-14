@@ -1,5 +1,11 @@
 import numpy as np
+import logging
+
 from albumentations.core.transforms_interface import DualTransform
+
+log = logging.getLogger(__name__)
+
+
 
 class ProbabilisticCrop(DualTransform):
     
@@ -31,5 +37,7 @@ class ProbabilisticCrop(DualTransform):
         h = min(h, img.shape[0] - self.half_h)
         w = max(w, self.half_w)
         w = min(w, img.shape[1] - self.half_w)
+        
+        log.info(f'{h}_{w}')
         
         return img[h-self.half_h:h+self.half_h, w-self.half_w:w+self.half_w, :]

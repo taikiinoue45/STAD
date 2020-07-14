@@ -1,18 +1,15 @@
-device: 'cuda:3'
+device: 'cuda:2'
 patch_size: 128
 
 dataset:
   name: 'MVTecDataset'
-  train:
-    img: '/dgx/shared/momo/Data/MVTec/bottle/train/good'
-    mask: ''
+  train: 
+    normal: '/dgx/data/MVTec/train'
+  val:
+    normal: '/dgx/data/MVTec/val'
   test:
-    normal:
-      img: '/dgx/shared/momo/Data/MVTec/bottle/test/good'
-      mask: ''
-    anomaly:
-      img: '/dgx/shared/momo/Data/MVTec/bottle/test/broken_small'
-      mask: '/dgx/shared/momo/Data/MVTec/bottle/ground_truth/broken_small'
+    normal: '/dgx/data/MVTec/test/normal'
+    anomaly: '/dgx/data/MVTec/test/anomaly'
 
 augs:
   train:
@@ -44,15 +41,15 @@ criterion:
   name: 'MSELoss'
 
 pretrained_models:
-  school: '/home/inoue/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
+  school: # '/home/inoue/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
   student:
   teacher:
 
 train:
-  epochs: 1000
-  mini_epochs: 10
+  epochs: 10
+  mini_epochs: 3
   batch_size: 1
 
 test:
-  batch_size: 128
+  batch_size: 8
   unfold_stride: 4

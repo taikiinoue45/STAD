@@ -9,6 +9,7 @@ def my_app(cfg):
     
     os.makedirs('test/normal')
     os.makedirs('test/anomaly')
+    os.makedirs('val')
     
     trainer = Trainer(cfg)
     
