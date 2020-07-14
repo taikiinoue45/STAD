@@ -61,7 +61,7 @@ Next, I’m showing the anomaly map from `broken_small` image. If the anomalies 
 
 ## 2. Roadmap
 #### Accelerate Training and Inference
-- [x] TensorRT support
+- [x] TensorRT
 - [x] nn.Unfold
 - [ ] [Fast dense feature extraction](https://github.com/TaikiInoue/FDFE)
 #### Improve the Performance
