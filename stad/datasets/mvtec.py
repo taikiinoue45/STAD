@@ -41,8 +41,9 @@ class MVTecDataset(Dataset):
             mask = np.zeros(img.shape)
 
         if self.augs:
-            sample = self.augs(image=img)
+            sample = self.augs(image=img, mask=mask)
             img = sample['image']
+            mask = sample['mask']
             
         return img, raw_img, mask
     
