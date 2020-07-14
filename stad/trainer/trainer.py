@@ -176,16 +176,10 @@ class Trainer:
                 np.save(f, anomaly_map)
                 
         # Update anomaly_map in ProbabilisticCrop
-        for j, aug in enumerate(self.train_augs):
+        for i, aug in enumerate(self.train_augs):
             
-            if aug.__module__ == 'probabilistic_crop':
-                self.train_augs[j].anomaly_map = cumulative_anomaly_map
-        
-        # Re-create train dataloader to apply the updated train_augs
-        self.dataloader['train'] = self.get_dataloader(
-            data_dir=self.cfg.dataset.train.normal,
-            augs=self.train_augs
-        )
+            if aug.__module__ == 'stad.albu.probabilistic_crop':
+                self.dataloader['train'].dataset.augs[i].anomaly_map = cumulative_anomaly_map
 
             
                    
