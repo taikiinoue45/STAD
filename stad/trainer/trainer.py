@@ -1,6 +1,7 @@
 import stad.datasets
 import stad.models
 import torch
+import torch.nn as nn
 import cv2
 import logging
 import numpy as np
@@ -208,17 +209,70 @@ class Trainer:
 
    
 
+    def patchize(self, img):
+        
+        '''
+        img.shape
+        B  : batch size
+        C  : channels of image (same to patches.shape[1])    
+        iH : height of image
+        iW : width of image
+        
+        pH : height of patch
+        pW : width of patch
+        V  : values in a patch (pH * pW * C)
+        '''
+        
+        B, C, iH, iW = img.shape
+        pH = self.cfg.patch_size
+        pW = self.cfg.patch_size
+
+        unfold = nn.Unfold(kernel_size=(pH, pW), 
+                           stride=self.cfg.test.unfold_stride)
+        
+        patches = unfold(img)                            # (B, V, P)
+        patches = patches.permute(0, 2, 1).contiguous()  # (B, P, V)
+        patches = patches.view(-1, C, pH, pW)            # (P, C, pH, pW)
+        return patches
+    
+    
+    
+    def compute_squared_l2_distance(self, 
+                                    pred, 
+                                    surrogate_label):
+        
+        losses = (pred - surrogate_label) ** 2
+        losses = losses.view(losses.shape[0], -1)
+        losses = torch.mean(losses, dim=1)
+        losses = losses.cpu().detach()
+        
+        return losses
+
+    
+        
     def compute_anomaly_map(self, img):
         
-        unfold = torch.nn.Unfold(
-            kernel_size=(self.cfg.patch_size, self.cfg.patch_size), 
-            stride=self.cfg.test.unfold_stride)
-        patches = unfold(img)
-        patches = patches.permute(0, 2, 1)
-        patches = patches.view(-1, 3, self.cfg.patch_size, self.cfg.patch_size)
+        '''
+        img.shape
+        B  : batch size
+        C  : channels of image (same to patches.shape[1])    
+        iH : height of image
+        iW : width of image
         
-        anomaly_map = np.zeros(patches.shape[0])
-        quotient, remainder = divmod(patches.shape[0], self.cfg.test.batch_size)
+        patches.shape
+        P  : patch size
+        C  : channels of image (same to img.shape[1])
+        pH : height of patch
+        pW : width of patch
+        '''
+                
+        patches = self.patchize(img)
+        
+        B, C, iH, iW = img.shape        
+        P, C, pH, pW = patches.shape
+
+        anomaly_map = torch.zeros(P)
+        quotient, remainder = divmod(P, self.cfg.test.batch_size)
 
         for i in tqdm(range(quotient)):
             
@@ -228,38 +282,26 @@ class Trainer:
             patch = patches[start:end, :, :, :]
             patch = patch.to(self.cfg.device)
 
-            surrogate_label, pred = self.school(patch)
-
-            losses = pred - surrogate_label
-            losses = losses.view(self.cfg.test.batch_size, -1)
-            losses = losses.pow(2).mean(1)
-            losses = losses.cpu().detach().numpy()
-            
+            surrogate_label, pred = self.school(patch)             
+            losses = self.compute_squared_l2_distance(pred, surrogate_label)
             anomaly_map[start:end] = losses
-            
+        
+
         patch = patches[-remainder:, :, :, :]
         patch = patch.to(self.cfg.device)
-
+        
         surrogate_label, pred = self.school(patch)
-
-        losses = pred - surrogate_label
-        losses = losses.view(remainder, -1)
-        losses = losses.pow(2).mean(1)
-        losses = losses.cpu().detach().numpy()
+        losses = self.compute_squared_l2_distance(pred, surrogate_label)        
         anomaly_map[-remainder:] = losses
-        
-        # img.shape -> (b, c, h, w)
-        _, _, img_h, img_w = img.shape
-        anomaly_map_h = int((img_h - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
-        anomaly_map_w = int((img_w - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
-        anomaly_map = anomaly_map.reshape((anomaly_map_h, anomaly_map_w))
-        
-        # Note that (width, height) must be specified to dsize, not (height, width)
-        # https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#resize
-        anomaly_map = cv2.resize(anomaly_map, dsize=(img_w, img_h))
 
-        del patches
+        fold = nn.Fold(output_size=(iH, iW), 
+                       kernel_size=(pH, pW), 
+                       stride=self.cfg.test.unfold_stride)
         
+        anomaly_map = anomaly_map.expand(B, pH*pW, P)
+        anomaly_map = fold(anomaly_map)
+        
+        del patches
         return anomaly_map
 
     
