@@ -253,8 +253,11 @@ class Trainer:
         anomaly_map_h = int((img_h - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
         anomaly_map_w = int((img_w - self.cfg.patch_size) / self.cfg.test.unfold_stride + 1)
         anomaly_map = anomaly_map.reshape((anomaly_map_h, anomaly_map_w))
-        anomaly_map = cv2.resize(anomaly_map, (img_h, img_w))
         
+        # Note that (width, height) must be specified to dsize, not (height, width)
+        # https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html#resize
+        anomaly_map = cv2.resize(anomaly_map, dsize=(img_w, img_h))
+
         del patches
         
         return anomaly_map

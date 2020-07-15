@@ -6,6 +6,7 @@ from pathlib import Path
 from torch.utils.data import Dataset
 
 
+
 class MVTecDataset(Dataset):
 
     def __init__(self,
@@ -38,7 +39,7 @@ class MVTecDataset(Dataset):
             sample = self.augs(image=img, mask=mask)
             img = sample['image']
             mask = sample['mask']
-            
+        
         return img, raw_img, mask
     
 

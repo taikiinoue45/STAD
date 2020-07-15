@@ -1,25 +1,19 @@
-device: 'cuda:3'
+device: 'cuda:0'
 patch_size: 128
 
 dataset:
   name: 'SomicDataset'
   train:
-    img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02/images'
-    mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02/masks'
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/11'
+  val:
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/val/normal/11'
   test:
-    normal:
-      img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02/images'
-      mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02/masks'
-    anomaly:
-      img: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02/images'
-      mask: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02/masks'
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/11'
+    anomaly: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/11'
 
 augs:
   train:
-  - name: 'HorizontalFlip'
-    args:
-      p: 0.5
-  - name: 'RandomCrop'
+  - name: 'ProbabilisticCrop'
     args:
       height: 128
       width: 128
@@ -50,8 +44,9 @@ pretrained_models:
 
 train:
   epochs: 1000
+  mini_epochs: 100
   batch_size: 1
 
 test:
   batch_size: 64
-  
+  unfold_stride: 4

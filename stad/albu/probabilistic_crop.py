@@ -25,13 +25,13 @@ class ProbabilisticCrop(DualTransform):
     def apply(self, img, **params):
         
         if len(self.anomaly_map) == 0:
-            anomaly_map = np.ones(img.shape[:2])
-            self.anomaly_map = anomaly_map / anomaly_map.sum()
+            self.anomaly_map = np.ones(img.shape[:2])
         
         a = np.arange(np.prod(self.anomaly_map.shape))
         p = self.anomaly_map.flatten()
         p = p / p.sum()
         sample = np.random.choice(a=a, size=1, p=p)[0]
+
         h, w = divmod(sample, self.anomaly_map.shape[1])
         h = max(h, self.half_h)
         h = min(h, img.shape[0] - self.half_h)

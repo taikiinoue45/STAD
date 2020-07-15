@@ -4,7 +4,7 @@ import logging
 from stad.trainer import Trainer
 
 
-@hydra.main(config_path='/home/inoue/github/STAD/stad/yamls/mvtec.yaml')
+@hydra.main(config_path='/dgx/github/STAD/stad/yamls/somic.yaml')
 def my_app(cfg):
     
     os.makedirs('test/normal')
