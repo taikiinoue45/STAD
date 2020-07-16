@@ -1,15 +1,16 @@
-device: 'cuda:0'
+device: 'cuda:2'
 patch_size: 128
+in_channels: 3
 
 dataset:
   name: 'SomicDataset'
   train:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/11'
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02'
   val:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/val/normal/11'
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/val/normal/02'
   test:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/11'
-    anomaly: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/11'
+    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02'
+    anomaly: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02'
 
 augs:
   train:

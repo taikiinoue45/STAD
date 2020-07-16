@@ -300,6 +300,8 @@ class Trainer:
         
         anomaly_map = anomaly_map.expand(B, pH*pW, P)
         anomaly_map = fold(anomaly_map)
+        anomaly_map = anomaly_map.numpy()
+        anomaly_map = anomaly_map[0, 0, :, :]
         
         del patches
         return anomaly_map
