@@ -34,7 +34,8 @@ class ProbabilisticCrop(DualTransform):
 
         h, w = divmod(sample, self.anomaly_map.shape[1])
         
-        log.info(f'{h}_{w}')
+        log.info(f'h_{h}')
+        log.info(f'w_{w}')
         
         h = max(h, self.half_h)
         h = min(h, img.shape[0] - self.half_h)

@@ -1,4 +1,4 @@
-device: 'cuda:3'
+device: 'cuda:2'
 patch_size: 128
 in_channels: 3
 
@@ -10,7 +10,7 @@ dataset:
     normal: '/dgx/data/MVTec/val'
   test:
     normal: '/dgx/data/MVTec/test/normal'
-    anomaly: '/dgx/data/MVTec/test/contamination'
+    anomaly: '/dgx/data/MVTec/test/broken_small'
 
 augs:
   train:
@@ -39,13 +39,13 @@ criterion:
   name: 'MSELoss'
 
 pretrained_models:
-  school: '/dgx/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
+  school: # '/dgx/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
   student:
   teacher:
 
 train:
-  epochs: 10
-  mini_epochs: 2
+  epochs: 1000
+  mini_epochs: 100
   batch_size: 1
 
 test:

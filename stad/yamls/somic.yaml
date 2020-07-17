@@ -1,4 +1,4 @@
-device: 'cuda:2'
+device: 'cuda:1'
 patch_size: 128
 in_channels: 3
 

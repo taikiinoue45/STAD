@@ -120,8 +120,9 @@ class Trainer:
         self.school.student.train()        
         self.school.teacher.eval()
         
-        for epoch in range(1, self.cfg.train.epochs+1):
+        for epoch in range(1, self.cfg.train.epochs):
             
+            log.info(f'epoch_{epoch}')
             loss_sum = 0
             
             for img, _, _ in self.dataloader['train']:
@@ -134,7 +135,7 @@ class Trainer:
                 self.optimizer.step()
                             
             epoch_loss = loss_sum / len(self.dataloader['train'])
-            log.info(f'epoch: {epoch:04},  loss: {epoch_loss}')
+            log.info(f'loss_{epoch_loss}')
             
             if epoch % self.cfg.train.mini_epochs == 0:
                 self.run_val(epoch)
@@ -170,12 +171,13 @@ class Trainer:
             raw_img = raw_img.squeeze().detach().numpy()
             mask = mask.squeeze().detach().numpy()
 
-            cv2.imwrite(f'val/{epoch:04}_{i:02}_img.jpg', raw_img)
-            cv2.imwrite(f'val/{epoch:04}_{i:02}_mask.png', mask)                
+            cv2.imwrite(f'val/{epoch}_{i}_img.jpg', raw_img)
+            cv2.imwrite(f'val/{epoch}_{i}_mask.png', mask)                
 
-            with open(f'val/{epoch:04}_{i:02}_anomaly_map.npy', 'wb') as f:
+            with open(f'val/{epoch}_{i}_anomaly_map.npy', 'wb') as f:
                 np.save(f, anomaly_map)
-                
+        
+                        
         # Update anomaly_map in ProbabilisticCrop
         for i, aug in enumerate(self.train_augs):
             
@@ -201,10 +203,10 @@ class Trainer:
                 raw_img = raw_img.squeeze().detach().numpy()
                 mask = mask.squeeze().detach().numpy()
                 
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_img.jpg', raw_img)
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i:02}_mask.png', mask)                
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i}_img.jpg', raw_img)
+                cv2.imwrite(f'test/{anomaly_or_normal}/{i}_mask.png', mask)                
                 
-                with open(f'test/{anomaly_or_normal}/{i:02}_anomaly_map.npy', 'wb') as f:
+                with open(f'test/{anomaly_or_normal}/{i}_anomaly_map.npy', 'wb') as f:
                     np.save(f, anomaly_map)
 
    
