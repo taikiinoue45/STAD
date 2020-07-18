@@ -29,12 +29,12 @@ class Trainer:
         self.dataloader = {}
         
         self.dataloader['train'] = self.get_dataloader(
-            data_dir=self.cfg.dataset.train.normal,
+            data_dir=self.cfg.dataset.train,
             augs=self.train_augs
         )
         
         self.dataloader['val'] = self.get_dataloader(
-            data_dir=self.cfg.dataset.val.normal,
+            data_dir=self.cfg.dataset.val,
             augs=self.test_augs
         )
 

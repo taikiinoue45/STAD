@@ -1,45 +1,46 @@
-device: 'cuda:2'
+device: cuda:0
 patch_size: 128
 in_channels: 3
+experiment: train_epoch
 
 dataset:
-  name: 'MVTecDataset'
-  train: 
-    normal: '/dgx/data/MVTec/train'
-  val:
-    normal: '/dgx/data/MVTec/val'
+  name: MVTecDataset
+  base: /app/github/data/MVTec
+  train: ${dataset.base}/train
+  val: ${dataset.base}/val
   test:
-    normal: '/dgx/data/MVTec/test/normal'
-    anomaly: '/dgx/data/MVTec/test/broken_small'
-
+    defect: broken_small
+    anomaly: ${dataset.base}/test/${dataset.test.defect}
+    normal: ${dataset.base}/test/normal
+    
 augs:
   train:
-  - name: 'ProbabilisticCrop'
+  - name: ProbabilisticCrop
     args:
-      height: 128
-      width: 128
+      height: ${patch_size}
+      width: ${patch_size}
       always_apply: True
       p: 1
-  - name: 'Normalize'
+  - name: Normalize
     args:
       always_apply: True
       p: 1
   test:
-  - name: 'Normalize'
+  - name: Normalize
     args:
       always_apply: True
       p: 1
 
 optim:
-  name: 'Adam'
+  name: Adam
   lr: 0.0002
   weight_decay: 0.00001
 
 criterion:
-  name: 'MSELoss'
+  name: MSELoss
 
 pretrained_models:
-  school: # '/dgx/github/STAD/stad/outputs/2020-07-14/00-47-15/school.pth'
+  school:
   student:
   teacher:
 
@@ -50,4 +51,4 @@ train:
 
 test:
   batch_size: 64
-  unfold_stride: 4
+  unfold_stride: 64

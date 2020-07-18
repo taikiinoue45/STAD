@@ -8,7 +8,7 @@ from stad.trainer import Trainer
 from stad.utils import *
 
 
-@hydra.main(config_path='/dgx/github/STAD/stad/yamls/mvtec.yaml')
+@hydra.main(config_path='/app/github/STAD/stad/yamls/mvtec.yaml')
 def my_app(cfg):
     
     print(cfg.pretty())
@@ -18,6 +18,7 @@ def my_app(cfg):
     os.makedirs('test/anomaly')
     os.makedirs('val')
     os.rename('.hydra', 'hydra')
+    os.rename(os.getcwd(), os.getcwd()+f'_{cfg.experiment}')
     
     trainer = Trainer(cfg)
     
