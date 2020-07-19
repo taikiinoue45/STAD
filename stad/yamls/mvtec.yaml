@@ -1,7 +1,7 @@
 device: cuda:0
 patch_size: 128
 in_channels: 3
-experiment: train_epoch
+experiment:
 
 dataset:
   name: MVTecDataset
@@ -45,8 +45,8 @@ pretrained_models:
   teacher:
 
 train:
-  epochs: 1000
-  mini_epochs: 100
+  epochs: 6
+  mini_epochs: 2
   batch_size: 1
 
 test:

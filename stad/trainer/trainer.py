@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from tqdm import tqdm
 
+
 log = logging.getLogger(__name__)
 
 
@@ -153,16 +154,16 @@ class Trainer:
         self.school.teacher.eval()
         self.school.student.eval()
         
-        cumulative_anomaly_map = np.array([])
+        cumulative_heatmap = np.array([])
         
         for i, (img, raw_img, mask) in enumerate(self.dataloader['val']):
             
-            anomaly_map = self.compute_anomaly_map(img)
+            heatmap = self.compute_heatmap(img)
             
-            if len(cumulative_anomaly_map) == 0:
-                cumulative_anomaly_map = anomaly_map
+            if len(cumulative_heatmap) == 0:
+                cumulative_heatmap = heatmap
             else:
-                cumulative_anomaly_map += anomaly_map
+                cumulative_heatmap += heatmap
 
             # Save raw_img, mask and anomaly map
             # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
@@ -171,18 +172,18 @@ class Trainer:
             raw_img = raw_img.squeeze().detach().numpy()
             mask = mask.squeeze().detach().numpy()
 
-            cv2.imwrite(f'val/{epoch}_{i}_img.jpg', raw_img)
-            cv2.imwrite(f'val/{epoch}_{i}_mask.png', mask)                
+            cv2.imwrite(f'{epoch} - {i} - val_img.jpg', raw_img)
+            cv2.imwrite(f'{epoch} - {i} - val_mask.png', mask)                
 
-            with open(f'val/{epoch}_{i}_anomaly_map.npy', 'wb') as f:
-                np.save(f, anomaly_map)
+            with open(f'{epoch} - {i} - val_heatmap.npy', 'wb') as f:
+                np.save(f, heatmap)
         
                         
-        # Update anomaly_map in ProbabilisticCrop
+        # Update heatmap in ProbabilisticCrop
         for i, aug in enumerate(self.train_augs):
             
             if aug.__module__ == 'stad.albu.probabilistic_crop':
-                self.dataloader['train'].dataset.augs[i].anomaly_map = cumulative_anomaly_map
+                self.dataloader['train'].dataset.augs[i].heatmap = cumulative_heatmap
 
             
                    
@@ -194,7 +195,7 @@ class Trainer:
         for anomaly_or_normal in ['anomaly', 'normal']:
             for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
 
-                anomaly_map = self.compute_anomaly_map(img)
+                heatmap = self.compute_heatmap(img)
 
                 # Save raw_img, mask and anomaly map
                 # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
@@ -203,11 +204,11 @@ class Trainer:
                 raw_img = raw_img.squeeze().detach().numpy()
                 mask = mask.squeeze().detach().numpy()
                 
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i}_img.jpg', raw_img)
-                cv2.imwrite(f'test/{anomaly_or_normal}/{i}_mask.png', mask)                
+                cv2.imwrite(f'{i} - test_{anomaly_or_normal}_img.jpg', raw_img)
+                cv2.imwrite(f'{i} - test_{anomaly_or_normal}_mask.png', mask)                
                 
-                with open(f'test/{anomaly_or_normal}/{i}_anomaly_map.npy', 'wb') as f:
-                    np.save(f, anomaly_map)
+                with open(f'{i} - test_{anomaly_or_normal}_heatmap.npy', 'wb') as f:
+                    np.save(f, heatmap)
 
    
 
@@ -252,7 +253,7 @@ class Trainer:
 
     
         
-    def compute_anomaly_map(self, img):
+    def compute_heatmap(self, img):
         
         '''
         img.shape
@@ -273,7 +274,7 @@ class Trainer:
         B, C, iH, iW = img.shape        
         P, C, pH, pW = patches.shape
 
-        anomaly_map = torch.zeros(P)
+        heatmap = torch.zeros(P)
         quotient, remainder = divmod(P, self.cfg.test.batch_size)
 
         for i in tqdm(range(quotient)):
@@ -286,7 +287,7 @@ class Trainer:
 
             surrogate_label, pred = self.school(patch)             
             losses = self.compute_squared_l2_distance(pred, surrogate_label)
-            anomaly_map[start:end] = losses
+            heatmap[start:end] = losses
         
 
         patch = patches[-remainder:, :, :, :]
@@ -294,18 +295,18 @@ class Trainer:
         
         surrogate_label, pred = self.school(patch)
         losses = self.compute_squared_l2_distance(pred, surrogate_label)        
-        anomaly_map[-remainder:] = losses
+        heatmap[-remainder:] = losses
 
         fold = nn.Fold(output_size=(iH, iW), 
                        kernel_size=(pH, pW), 
                        stride=self.cfg.test.unfold_stride)
         
-        anomaly_map = anomaly_map.expand(B, pH*pW, P)
-        anomaly_map = fold(anomaly_map)
-        anomaly_map = anomaly_map.numpy()
-        anomaly_map = anomaly_map[0, 0, :, :]
+        heatmap = heatmap.expand(B, pH*pW, P)
+        heatmap = fold(heatmap)
+        heatmap = heatmap.numpy()
+        heatmap = heatmap[0, 0, :, :]
         
         del patches
-        return anomaly_map
+        return heatmap
 
     

@@ -13,7 +13,11 @@ def load_log():
             epoch = v
             di[epoch] = {'h': [], 'w': [], 'loss': []}
             continue
-
-        di[epoch][k].append(float(v))
+        
+        elif k == 'loss':
+            di[epoch][k] = float(v)
+        
+        elif k in ['h', 'w']:
+            di[epoch][k].append(float(v))
         
     return di

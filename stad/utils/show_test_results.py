@@ -3,79 +3,63 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from tqdm import tqdm
+from mpl_toolkits.axes_grid1 import ImageGrid
+
 
 
 def savefig(path_savefig: Path,
             img: np.array, 
             mask: np.array, 
-            anomaly_map: np.array):
+            heatmap: np.array):
     
-    plt.figure(figsize=(12, 4))
+    fig = plt.figure(figsize=(12, 4))
 
-    plt.subplot(131)
-    plt.imshow(img)
-    plt.title('Original Image', fontsize=20)
-    plt.xticks(color='None')
-    plt.yticks(color='None') 
-    plt.tick_params(length=0)
-    plt.tight_layout()
+    # How to get two subplots to share the same y-axis with a single colorbar
+    # https://stackoverflow.com/a/38940369
+    grid = ImageGrid(fig=fig, 
+                     rect=111,
+                     nrows_ncols=(1,3),
+                     axes_pad=0.15,
+                     share_all=True,
+                     cbar_location="right",
+                     cbar_mode="single",
+                     cbar_size="5%",
+                     cbar_pad=0.15)
 
-    plt.subplot(132)
-    plt.imshow(img)
-    plt.imshow(mask, alpha=0.5)
-    plt.title('Ground Truth', fontsize=20)
-    plt.xticks(color='None')
-    plt.yticks(color='None') 
-    plt.tick_params(length=0)
-    plt.tight_layout()
+    grid[0].imshow(img)
+    grid[0].tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
 
-    plt.subplot(133)
-    plt.imshow(img)
-    plt.imshow(anomaly_map, alpha=0.5)
-    plt.title('Anomaly Map', fontsize=20)
-    plt.xticks(color='None')
-    plt.yticks(color='None') 
-    plt.tick_params(length=0)
-    plt.tight_layout()    
+    grid[1].imshow(img)
+    grid[1].imshow(mask, alpha=0.5)
+    grid[1].tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
+    
+    grid[2].imshow(img)
+    im = grid[2].imshow(heatmap, alpha=0.5)
+    grid[2].tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
+    grid[2].cax.colorbar(im)
+    grid[2].cax.toggle_label(True)
 
-    plt.savefig(path_savefig)
+    plt.savefig(path_savefig, bbox_inches='tight')
     plt.close()
     
 
     
-def show_test_results(base: Path):
+def show_test_results(normal_or_anomaly: str):
     
     # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
     # https://hydra.cc/docs/tutorial/working_directory
-    
-    # Get the maximum anomaly score in all anomaly maps
-    # It is used to make the maximum anomaly score same over all anomaly maps
-    max_anomaly_score = -1
-    for p in Path('test/anomaly').glob('*_anomaly_map.npy'):
-
-        with open(p, 'rb') as f:
-            anomaly_map = np.load(f)
-            max_anomaly_score = max(max_anomaly_score, anomaly_map.max())
-
-            
-    # Show and save the anomaly maps 
-    for p in tqdm(base.glob('*_img.jpg')):
-
-        idx, _ = p.stem.split('_')
+    base = Path('.')
+    for p in base.glob(f'* - test_{normal_or_anomaly}_img.jpg'):
+        idx, _ = p.stem.split(' - ')
 
         img = cv2.imread(str(p))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        mask = cv2.imread(str(base / f'{idx}_mask.png'))
+        
+        mask = cv2.imread(str(base / f'{idx} - test_{normal_or_anomaly}_mask.png'))
         mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
 
-        with open(base / f'{idx}_anomaly_map.npy', 'rb') as f:
-            anomaly_map = np.load(f)
-            anomaly_map[0, 0] = max_anomaly_score
+        with open(base / f'{idx} - test_{normal_or_anomaly}_heatmap.npy', 'rb') as f:
+            heatmap = np.load(f)
 
-        path_savefig = base / f'{idx}_results.png'
-        savefig(path_savefig, img, mask, anomaly_map)
-
-
-
+        path_savefig = base / f'{idx} - test_{normal_or_anomaly}_results.png'
+        savefig(path_savefig, img, mask, heatmap)
