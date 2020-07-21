@@ -87,7 +87,7 @@ class Trainer:
                           
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=self.cfg.train.batch_size,
-                                shuffle=False)
+                                shuffle=True)
         return dataloader
 
 
@@ -156,7 +156,7 @@ class Trainer:
         
         cumulative_heatmap = np.array([])
         
-        for i, (img, raw_img, mask) in enumerate(self.dataloader['val']):
+        for i, (img, raw_img, mask) in enumerate(self.dataloader[self.cfg.val.dataloader_type]):
             
             heatmap = self.compute_heatmap(img)
             
@@ -177,6 +177,9 @@ class Trainer:
 
             with open(f'{epoch} - {i} - val_heatmap.npy', 'wb') as f:
                 np.save(f, heatmap)
+                
+            if i+1 == self.cfg.val.data_num:
+                break
         
                         
         # Update heatmap in ProbabilisticCrop
