@@ -1,42 +1,43 @@
-device: 'cuda:1'
+device: cuda:0
 patch_size: 128
 in_channels: 3
+experiment:
 
 dataset:
-  name: 'SomicDataset'
-  train:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/train/normal/02'
-  val:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/val/normal/02'
+  name: SomicDataset
+  base: /dgx/shared/momo/inoue/somic/dataset/H_ziku_unsupervise
+  angle: 5
+  train: ${dataset.base}/train/normal/${dataset.angle}
+  val: ${dataset.base}/val/normal/${dataset.angle}
   test:
-    normal: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/normal/02'
-    anomaly: '/dgx/shared/momo/inoue/somic/dataset/2020-06-18_H_tobu_for_unsupervise/test/anomaly/02'
+    normal: ${dataset.base}/test/normal/${dataset.angle}
+    anomaly: ${dataset.base}/test/anomaly/${dataset.angle}
 
 augs:
   train:
-  - name: 'ProbabilisticCrop'
+  - name: ProbabilisticCrop
     args:
-      height: 128
-      width: 128
+      height: ${patch_size}
+      width: ${patch_size}
       always_apply: True
       p: 1
-  - name: 'Normalize'
+  - name: Normalize
     args:
       always_apply: True
       p: 1
   test:
-  - name: 'Normalize'
+  - name: Normalize
     args:
       always_apply: True
       p: 1
 
 optim:
-  name: 'Adam'
+  name: Adam
   lr: 0.0002
   weight_decay: 0.00001
 
 criterion:
-  name: 'MSELoss'
+  name: MSELoss
 
 pretrained_models:
   school:
@@ -48,6 +49,10 @@ train:
   mini_epochs: 100
   batch_size: 1
 
+val:
+  dataloader_type:
+  data_num: 8
+
 test:
   batch_size: 64
-  unfold_stride: 4
+  unfold_stride: 16

@@ -5,7 +5,7 @@ experiment:
 
 dataset:
   name: MVTecDataset
-  base: /app/github/data/MVTec
+  base: /dgx/data/MVTec
   train: ${dataset.base}/train
   val: ${dataset.base}/val
   test:
@@ -45,10 +45,10 @@ pretrained_models:
   teacher:
 
 train:
-  epochs: 6
-  mini_epochs: 2
+  epochs: 1000
+  mini_epochs: 100
   batch_size: 1
 
 test:
   batch_size: 64
-  unfold_stride: 64
+  unfold_stride: 16
