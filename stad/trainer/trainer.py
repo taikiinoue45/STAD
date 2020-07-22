@@ -1,27 +1,24 @@
 import logging
 from pathlib import Path
 
-import cv2
 import numpy as np
 from tqdm import tqdm
 
+import cv2
 import stad.datasets
 import stad.models
+import stad.typehint as T
 import torch
 import torch.nn as nn
 from albumentations.pytorch import ToTensorV2
-from omegaconf import DictConfig
 from stad import albu
-from torch import Tensor
-from torch.nn.modules.loss import _Loss
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 log = logging.getLogger(__name__)
 
 
 class Trainer:
-    def __init__(self, cfg: DictConfig) -> None:
+    def __init__(self, cfg: T.DictConfig) -> None:
 
         self.cfg = cfg
 
@@ -51,11 +48,11 @@ class Trainer:
         self.optimizer = self.get_optimizer()
         self.criterion = self.get_criterion()
 
-    def get_school(self) -> nn.Module:
+    def get_school(self) -> T.Module:
 
         return stad.models.School()
 
-    def get_augs(self, train_or_test: str) -> albu.Compose:
+    def get_augs(self, train_or_test: str) -> T.Compose:
 
         augs = []
         for i in range(len(self.cfg["augs"][train_or_test])):
@@ -66,18 +63,16 @@ class Trainer:
 
         return albu.Compose(augs)
 
-    def get_dataloader(self, data_dir: str, augs: albu.Compose) -> DataLoader:
+    def get_dataloader(self, data_dir: str, augs: T.Compose) -> T.DataLoader:
 
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
-
         dataset = Dataset(data_dir=Path(data_dir), augs=augs)
-
         dataloader = DataLoader(
             dataset=dataset, batch_size=self.cfg.train.batch_size, shuffle=True
         )
         return dataloader
 
-    def get_optimizer(self) -> Optimizer:
+    def get_optimizer(self) -> T.Optimizer:
 
         parameters = self.school.student.parameters()
         lr = self.cfg.optim.lr
@@ -85,7 +80,7 @@ class Trainer:
         optimizer = torch.optim.Adam(parameters, lr=lr, weight_decay=weight_decay)
         return optimizer
 
-    def get_criterion(self) -> _Loss:
+    def get_criterion(self) -> T.Loss:
 
         return torch.nn.MSELoss(reduction="mean")
 
@@ -186,7 +181,7 @@ class Trainer:
                 with open(f"{i} - test_{anomaly_or_normal}_heatmap.npy", "wb") as f:
                     np.save(f, heatmap)
 
-    def patchize(self, img: Tensor) -> Tensor:
+    def patchize(self, img: T.Tensor) -> T.Tensor:
 
         """
         img.shape
@@ -212,8 +207,8 @@ class Trainer:
         return patches
 
     def compute_squared_l2_distance(
-        self, pred: Tensor, surrogate_label: Tensor
-    ) -> Tensor:
+        self, pred: T.Tensor, surrogate_label: T.Tensor
+    ) -> T.Tensor:
 
         losses = (pred - surrogate_label) ** 2
         losses = losses.view(losses.shape[0], -1)
@@ -222,7 +217,7 @@ class Trainer:
 
         return losses
 
-    def compute_heatmap(self, img: Tensor) -> np.array:
+    def compute_heatmap(self, img: T.Tensor) -> T.NDArray[(T.Any, T.Any), float]:
 
         """
         img.shape
@@ -251,7 +246,7 @@ class Trainer:
             start = i * self.cfg.test.batch_size
             end = start + self.cfg.test.batch_size
 
-            patch = patches[start:end, :, :, :]
+            patch = patches[start:end, :, :, :]  # (self.cfg.test.batch_size, C, pH, pW)
             patch = patch.to(self.cfg.device)
 
             surrogate_label, pred = self.school(patch)

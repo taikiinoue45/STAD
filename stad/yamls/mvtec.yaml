@@ -45,10 +45,13 @@ pretrained_models:
   teacher:
 
 train:
-  epochs: 1000
-  mini_epochs: 100
+  epochs: 4
+  mini_epochs: 2
   batch_size: 1
+
+val:
+  data_num: 8
 
 test:
   batch_size: 64
-  unfold_stride: 16
+  unfold_stride: 64

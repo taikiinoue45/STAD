@@ -1,13 +1,14 @@
 import os
 
 import hydra
-from omegaconf import DictConfig
+
+import stad.typehint as T
+import stad.utils as U
 from stad.trainer import Trainer
-from stad.utils import *
 
 
-@hydra.main(config_path="/app/github/STAD/stad/yamls/mvtec.yaml")
-def my_app(cfg: DictConfig) -> None:
+@hydra.main(config_path="/dgx/github/STAD_dev/stad/yamls/mvtec.yaml")
+def my_app(cfg: T.DictConfig) -> None:
 
     print(cfg.pretty())
     os.rename(".hydra", "hydra")
@@ -20,17 +21,17 @@ def my_app(cfg: DictConfig) -> None:
         trainer.run_train_student()
 
         # Functions in stad.utils
-        show_val_results()
-        show_probabilistic_crop()
-        save_loss_csv()
+        U.show_val_results()
+        U.show_probabilistic_crop()
+        U.save_loss_csv()
 
     trainer.run_test()
 
     # Functions in stad.utils
-    show_test_results("normal")
-    show_test_results("anomaly")
-    compute_mIoU()
-    clean_up()
+    U.show_test_results("normal")
+    U.show_test_results("anomaly")
+    U.compute_mIoU()
+    U.clean_up()
 
 
 if __name__ == "__main__":
