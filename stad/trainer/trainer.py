@@ -1,18 +1,18 @@
 import logging
 from pathlib import Path
 
-import numpy as np
-from tqdm import tqdm
-
 import cv2
-import stad.datasets
-import stad.models
-import stad.typehint as T
+import numpy as np
 import torch
 import torch.nn as nn
 from albumentations.pytorch import ToTensorV2
-from stad import albu
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+import stad.datasets
+import stad.models
+import stad.typehint as T
+from stad import albu
 
 log = logging.getLogger(__name__)
 
@@ -28,19 +28,21 @@ class Trainer:
         self.dataloader = {}
 
         self.dataloader["train"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.train, augs=self.train_augs
+            data_dir=self.cfg.dataset.train,
+            batch_size=self.cfg.train.batch_size,
+            augs=self.train_augs,
         )
 
         self.dataloader["val"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.val, augs=self.test_augs
+            data_dir=self.cfg.dataset.val, batch_size=1, augs=self.test_augs
         )
 
         self.dataloader["normal"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.test.normal, augs=self.test_augs
+            data_dir=self.cfg.dataset.test.normal, batch_size=1, augs=self.test_augs
         )
 
         self.dataloader["anomaly"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.test.anomaly, augs=self.test_augs
+            data_dir=self.cfg.dataset.test.anomaly, batch_size=1, augs=self.test_augs
         )
 
         self.school = self.get_school()
@@ -63,13 +65,11 @@ class Trainer:
 
         return albu.Compose(augs)
 
-    def get_dataloader(self, data_dir: str, augs: T.Compose) -> T.DataLoader:
+    def get_dataloader(self, data_dir: str, batch_size: int, augs: T.Compose) -> T.DataLoader:
 
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
         dataset = Dataset(data_dir=Path(data_dir), augs=augs)
-        dataloader = DataLoader(
-            dataset=dataset, batch_size=self.cfg.train.batch_size, shuffle=True
-        )
+        dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
         return dataloader
 
     def get_optimizer(self) -> T.Optimizer:
@@ -95,7 +95,7 @@ class Trainer:
 
         for epoch in range(1, self.cfg.train.epochs):
 
-            log.info(f"epoch_{epoch}")
+            log.info(f"epoch - {epoch}")
             loss_sum = 0
 
             for img, _, _ in self.dataloader["train"]:
@@ -108,7 +108,7 @@ class Trainer:
                 self.optimizer.step()
 
             epoch_loss = loss_sum / len(self.dataloader["train"])
-            log.info(f"loss_{epoch_loss}")
+            log.info(f"loss - {epoch_loss}")
 
             if epoch % self.cfg.train.mini_epochs == 0:
                 self.run_val(epoch)
@@ -162,9 +162,7 @@ class Trainer:
         self.school.student.eval()
 
         for anomaly_or_normal in ["anomaly", "normal"]:
-            for i, (img, raw_img, mask) in enumerate(
-                self.dataloader[anomaly_or_normal]
-            ):
+            for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
 
                 heatmap = self.compute_heatmap(img)
 
@@ -206,9 +204,7 @@ class Trainer:
         patches = patches.view(-1, C, pH, pW)  # (P, C, pH, pW)
         return patches
 
-    def compute_squared_l2_distance(
-        self, pred: T.Tensor, surrogate_label: T.Tensor
-    ) -> T.Tensor:
+    def compute_squared_l2_distance(self, pred: T.Tensor, surrogate_label: T.Tensor) -> T.Tensor:
 
         losses = (pred - surrogate_label) ** 2
         losses = losses.view(losses.shape[0], -1)
@@ -220,13 +216,13 @@ class Trainer:
     def compute_heatmap(self, img: T.Tensor) -> T.NDArray[(T.Any, T.Any), float]:
 
         """
-        img.shape
+        img.shape -> (B, C, iH, iW)
         B  : batch size
         C  : channels of image (same to patches.shape[1])
         iH : height of image
         iW : width of image
 
-        patches.shape
+        patches.shape -> (P, C, pH, pW)
         P  : patch size
         C  : channels of image (same to img.shape[1])
         pH : height of patch
@@ -261,9 +257,7 @@ class Trainer:
         heatmap[-remainder:] = losses
 
         fold = nn.Fold(
-            output_size=(iH, iW),
-            kernel_size=(pH, pW),
-            stride=self.cfg.test.unfold_stride,
+            output_size=(iH, iW), kernel_size=(pH, pW), stride=self.cfg.test.unfold_stride,
         )
 
         heatmap = heatmap.expand(B, pH * pW, P)

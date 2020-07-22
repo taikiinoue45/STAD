@@ -1,4 +1,6 @@
+import logging
 import os
+from time import time
 
 import hydra
 
@@ -6,11 +8,12 @@ import stad.typehint as T
 import stad.utils as U
 from stad.trainer import Trainer
 
+log = logging.getLogger(__name__)
 
-@hydra.main(config_path="/dgx/github/STAD_dev/stad/yamls/mvtec.yaml")
+
+@hydra.main(config_path="/app/github/STAD/stad/yamls/mvtec.yaml")
 def my_app(cfg: T.DictConfig) -> None:
 
-    print(cfg.pretty())
     os.rename(".hydra", "hydra")
 
     trainer = Trainer(cfg)
@@ -18,12 +21,15 @@ def my_app(cfg: T.DictConfig) -> None:
     if cfg.pretrained_models.school:
         trainer.load_school_pth()
     else:
+        log.info(f"training start - {time()}")
         trainer.run_train_student()
+        log.info(f"training end - {time()}")
 
         # Functions in stad.utils
         U.show_val_results()
         U.show_probabilistic_crop()
         U.save_loss_csv()
+        U.save_training_time()
 
     trainer.run_test()
 

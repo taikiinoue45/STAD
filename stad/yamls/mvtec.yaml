@@ -5,14 +5,14 @@ experiment:
 
 dataset:
   name: MVTecDataset
-  base: /dgx/data/MVTec
+  base: /app/github/data/MVTec
   train: ${dataset.base}/train
-  val: ${dataset.base}/val
+  val: ${dataset.base}/train
   test:
     defect: broken_small
     anomaly: ${dataset.base}/test/${dataset.test.defect}
     normal: ${dataset.base}/test/normal
-    
+
 augs:
   train:
   - name: ProbabilisticCrop
@@ -45,13 +45,13 @@ pretrained_models:
   teacher:
 
 train:
-  epochs: 4
+  epochs: 16
   mini_epochs: 2
-  batch_size: 1
+  batch_size: 64
 
 val:
   data_num: 8
 
 test:
-  batch_size: 64
+  batch_size: 32
   unfold_stride: 64

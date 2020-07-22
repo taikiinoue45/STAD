@@ -48,6 +48,6 @@ def compute_mIoU() -> None:
             best_threshold = threshold
 
     with open("mIoU.txt", "w") as f:
-        f.write(f"max_{max_anomaly_score}\n")
-        f.write(f"threshold_{best_threshold}\n")
-        f.write(f"mIoU_{best_mIoU}\n")
+        f.write(f"max anomaly score - {max_anomaly_score}\n")
+        f.write(f"threshold - {best_threshold}\n")
+        f.write(f"mIoU - {best_mIoU}\n")
