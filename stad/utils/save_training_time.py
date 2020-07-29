@@ -14,4 +14,4 @@ def save_training_time():
             end = float(v)
 
     with open("training_time.txt", "w") as f:
-        f.write(f"training_time - {start - end}")
+        f.write(f"training_time - {end - start}")
