@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from time import time
 
 import hydra
@@ -10,8 +11,11 @@ from stad.trainer import Trainer
 
 log = logging.getLogger(__name__)
 
+config_path = sys.argv[1]
+sys.argv.pop(1)
 
-@hydra.main(config_path="/app/github/STAD/stad/yamls/mvtec.yaml")
+
+@hydra.main(config_path)
 def my_app(cfg: T.DictConfig) -> None:
 
     os.rename(".hydra", "hydra")
