@@ -14,4 +14,3 @@ def sidebar(base: Path):
     )
 
     return [p for p in base.glob(f"outputs/*/{condition}")][0]
-

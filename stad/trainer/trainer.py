@@ -1,11 +1,9 @@
 import logging
 from pathlib import Path
 
-import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -27,22 +25,26 @@ class Trainer:
 
         self.dataloader = {}
 
+        self.dataloader["pruning"] = self.get_dataloader(
+            base=self.cfg.dataset.train, batch_size=1, augs=self.train_augs,
+        )
+
         self.dataloader["train"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.train,
+            base=self.cfg.dataset.train,
             batch_size=self.cfg.train.batch_size,
             augs=self.train_augs,
         )
 
         self.dataloader["val"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.val, batch_size=1, augs=self.test_augs
+            base=self.cfg.dataset.val, batch_size=1, augs=self.test_augs
         )
 
         self.dataloader["normal"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.test.normal, batch_size=1, augs=self.test_augs
+            base=self.cfg.dataset.test.normal, batch_size=1, augs=self.test_augs
         )
 
         self.dataloader["anomaly"] = self.get_dataloader(
-            data_dir=self.cfg.dataset.test.anomaly, batch_size=1, augs=self.test_augs
+            base=self.cfg.dataset.test.anomaly, batch_size=1, augs=self.test_augs
         )
 
         self.school = self.get_school()
@@ -54,29 +56,28 @@ class Trainer:
 
         return stad.models.School()
 
+    def initialize_school(self) -> T.Module:
+
+        self.school = None
+        self.school = self.get_school()
+        self.school = self.school.to(self.cfg.device)
+
     def get_augs(self, train_or_test: str) -> T.Compose:
 
-        augs = []
-        for i in range(len(self.cfg["augs"][train_or_test])):
-            name = self.cfg["augs"][train_or_test][i]["name"]
-            fn = getattr(albu, name)
-            augs.append(fn(**self.cfg["augs"][train_or_test][i]["args"]))
-        augs.append(ToTensorV2())
+        return albu.load(self.cfg[train_or_test]["augs"], data_format="yaml")
 
-        return albu.Compose(augs)
-
-    def get_dataloader(self, data_dir: str, batch_size: int, augs: T.Compose) -> T.DataLoader:
+    def get_dataloader(self, base: str, batch_size: int, augs: T.Compose) -> T.DataLoader:
 
         Dataset = getattr(stad.datasets, self.cfg.dataset.name)
-        dataset = Dataset(data_dir=Path(data_dir), augs=augs)
+        dataset = Dataset(base=Path(base), augs=augs)
         dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
         return dataloader
 
     def get_optimizer(self) -> T.Optimizer:
 
         parameters = self.school.student.parameters()
-        lr = self.cfg.optim.lr
-        weight_decay = self.cfg.optim.weight_decay
+        lr = self.cfg.train.optim.lr
+        weight_decay = self.cfg.train.optim.weight_decay
         optimizer = torch.optim.Adam(parameters, lr=lr, weight_decay=weight_decay)
         return optimizer
 
@@ -86,48 +87,68 @@ class Trainer:
 
     def load_school_pth(self) -> None:
 
-        self.school.load_state_dict(torch.load(self.cfg.pretrained_models.school))
+        self.school.load_state_dict(torch.load(self.cfg.train.pretrained.school))
 
-    def run_train_student(self) -> None:
+    def run_train_student(self, is_pruning) -> None:
 
         self.school.student.train()
         self.school.teacher.eval()
 
-        for epoch in range(1, self.cfg.train.epochs):
+        pbar = tqdm(range(1, self.cfg.train.epochs), desc="train")
+        for epoch in pbar:
 
             log.info(f"epoch - {epoch}")
             loss_sum = 0
 
-            for img, _, _ in self.dataloader["train"]:
-                img = img.to(self.cfg.device)
+            for sample in self.dataloader["train"]:
+                img = sample["image"].to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
                 loss_sum += loss.item()
-                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                self.optimizer.zero_grad()
 
             epoch_loss = loss_sum / len(self.dataloader["train"])
             log.info(f"loss - {epoch_loss}")
 
-            if epoch % self.cfg.train.mini_epochs == 0:
+            if epoch % (self.cfg.train.epochs // 10) == 0:
                 self.run_val(epoch)
                 self.school.student.train()
                 self.school.teacher.eval()
 
-        # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-        # https://hydra.cc/docs/tutorial/working_directory
-        torch.save(self.school.state_dict(), "school.pth")
+        if is_pruning:
+            li = []
+            pbar = tqdm(self.dataloader["pruning"], desc="pruning")
+            for sample in pbar:
+                img = sample["image"].to(self.cfg.device)
+                img_path = sample["img_path"][0]
+                heatmap = self.compute_heatmap(img)
+                li.append([heatmap.max(), img_path])
+
+            threshold = int(self.cfg.train.pruning_rate * len(self.dataloader["train"].dataset))
+            li = sorted(li, key=lambda x: [0], reverse=True)
+            li = li[:threshold]
+            for _, img_path in li:
+                self.dataloader["train"].dataset.img_paths.remove(img_path)
+                log.info(f"pruned img - {img_path}")
+            self.initialize_school()
+        else:
+            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+            # https://hydra.cc/docs/tutorial/working_directory
+            torch.save(self.school.state_dict(), "school.pth")
 
     def run_val(self, epoch: int) -> None:
 
         self.school.teacher.eval()
         self.school.student.eval()
-
         cumulative_heatmap = np.array([])
 
-        for i, (img, raw_img, mask) in enumerate(self.dataloader["val"]):
+        pbar = tqdm(self.dataloader["val"], desc="val")
+        for i, sample in enumerate(pbar):
 
+            img = sample["image"]
+            stem = Path(sample["img_path"][0]).stem
             heatmap = self.compute_heatmap(img)
 
             if len(cumulative_heatmap) == 0:
@@ -135,16 +156,9 @@ class Trainer:
             else:
                 cumulative_heatmap += heatmap
 
-            # Save raw_img, mask and anomaly map
             # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
             # https://hydra.cc/docs/tutorial/working_directory
-            raw_img = raw_img.squeeze().detach().numpy()
-            mask = mask.squeeze().detach().numpy()
-
-            cv2.imwrite(f"{epoch} - {i} - val_img.jpg", raw_img)
-            cv2.imwrite(f"{epoch} - {i} - val_mask.png", mask)
-
-            with open(f"{epoch} - {i} - val_heatmap.npy", "wb") as f:
+            with open(f"{epoch} - {i} - val - {stem}.npy", "wb") as f:
                 np.save(f, heatmap)
 
             if i + 1 == self.cfg.val.data_num:
@@ -162,21 +176,16 @@ class Trainer:
         self.school.student.eval()
 
         for anomaly_or_normal in ["anomaly", "normal"]:
-            for i, (img, raw_img, mask) in enumerate(self.dataloader[anomaly_or_normal]):
+            pbar = tqdm(self.dataloader[anomaly_or_normal], desc=f"test - {anomaly_or_normal}")
+            for i, sample in enumerate(pbar):
 
+                img = sample["image"]
+                stem = Path(sample["img_path"][0]).stem
                 heatmap = self.compute_heatmap(img)
 
-                # Save raw_img, mask and anomaly map
                 # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
                 # https://hydra.cc/docs/tutorial/working_directory
-
-                raw_img = raw_img.squeeze().detach().numpy()
-                mask = mask.squeeze().detach().numpy()
-
-                cv2.imwrite(f"{i} - test_{anomaly_or_normal}_img.jpg", raw_img)
-                cv2.imwrite(f"{i} - test_{anomaly_or_normal}_mask.png", mask)
-
-                with open(f"{i} - test_{anomaly_or_normal}_heatmap.npy", "wb") as f:
+                with open(f"{i} - test_{anomaly_or_normal} - {stem}.npy", "wb") as f:
                     np.save(f, heatmap)
 
     def patchize(self, img: T.Tensor) -> T.Tensor:
@@ -237,7 +246,7 @@ class Trainer:
         heatmap = torch.zeros(P)
         quotient, remainder = divmod(P, self.cfg.test.batch_size)
 
-        for i in tqdm(range(quotient)):
+        for i in range(quotient):
 
             start = i * self.cfg.test.batch_size
             end = start + self.cfg.test.batch_size
@@ -262,8 +271,7 @@ class Trainer:
 
         heatmap = heatmap.expand(B, pH * pW, P)
         heatmap = fold(heatmap)
-        heatmap = heatmap.numpy()
-        heatmap = heatmap[0, 0, :, :]
+        heatmap = heatmap.squeeze().numpy()
 
         del patches
         return heatmap

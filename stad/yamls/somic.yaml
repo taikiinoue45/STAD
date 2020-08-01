@@ -1,11 +1,9 @@
 device: cuda:0
 patch_size: 128
-in_channels: 3
-experiment:
 
 dataset:
   name: SomicDataset
-  base: /dgx/shared/momo/inoue/somic/dataset/H_ziku_unsupervise
+  base: /dgx/shared/inoue/somic/dataset/H_ziku_unsupervise
   angle: 5
   train: ${dataset.base}/train/normal/${dataset.angle}
   val: ${dataset.base}/val/normal/${dataset.angle}
@@ -13,46 +11,26 @@ dataset:
     normal: ${dataset.base}/test/normal/${dataset.angle}
     anomaly: ${dataset.base}/test/anomaly/${dataset.angle}
 
-augs:
-  train:
-  - name: ProbabilisticCrop
-    args:
-      height: ${patch_size}
-      width: ${patch_size}
-      always_apply: True
-      p: 1
-  - name: Normalize
-    args:
-      always_apply: True
-      p: 1
-  test:
-  - name: Normalize
-    args:
-      always_apply: True
-      p: 1
-
-optim:
-  name: Adam
-  lr: 0.0002
-  weight_decay: 0.00001
-
-criterion:
-  name: MSELoss
-
-pretrained_models:
-  school:
-  student:
-  teacher:
-
 train:
-  epochs: 1000
-  mini_epochs: 100
-  batch_size: 1
+  augs: /dgx/github/STAD/stad/yamls/train_augmentations.yaml
+  pretrained:
+    school:
+    student:
+    teacher:
+  epochs: 4
+  batch_size: 16
+  optim:
+    name: Adam
+    lr: 0.0002
+    weight_decay: 0.00001
+  criterion:
+    name: MSELoss
 
 val:
-  dataloader_type:
+  augs: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
   data_num: 8
 
 test:
-  batch_size: 64
-  unfold_stride: 16
+  augs: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
+  batch_size: 32
+  unfold_stride: 64

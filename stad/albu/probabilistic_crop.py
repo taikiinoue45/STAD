@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from albumentations.core.transforms_interface import DualTransform
 
+
 log = logging.getLogger(__name__)
 
 
@@ -35,8 +36,8 @@ class ProbabilisticCrop(DualTransform):
 
         h, w = divmod(sample, self.heatmap.shape[1])
 
-        log.info(f"h - {h}")
-        log.info(f"w - {w}")
+        logging.info(f"h - {h}")
+        logging.info(f"w - {w}")
 
         h = max(h, self.half_h)
         h = min(h, img.shape[0] - self.half_h)

@@ -6,42 +6,22 @@ from pathlib import Path
 from torch.utils.data import Dataset
 
 
-
 class MVTecDataset(Dataset):
+    def __init__(self, base: Path, augs: albu.Compose) -> None:
 
-    def __init__(self,
-                 data_dir: Path,
-                 augs: albu.Compose) -> None:
-
-        self.img_paths = []
-        self.mask_paths = []
-
-        for img_path in data_dir.glob('images/*.png'):
-            mask_path = data_dir / f'masks/{img_path.stem}_mask.png'
-            self.img_paths.append(img_path)
-            self.mask_paths.append(mask_path)
-
+        self.img_paths = [str(p) for p in base.glob("images/*.png")]
         self.augs = augs
 
+    def __getitem__(self, idx: int):
 
-    def __getitem__(self,
-                    idx: int):
-
-        img_path = str(self.img_paths[idx])
-        raw_img = cv2.imread(img_path)
-        img = cv2.cvtColor(raw_img, cv2.COLOR_BGR2RGB)
-
-        mask_path = str(self.mask_paths[idx])
-        mask = cv2.imread(mask_path)
-        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+        img = cv2.imread(self.img_paths[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         if self.augs:
-            sample = self.augs(image=img, mask=mask)
-            img = sample['image']
-            mask = sample['mask']
-        
-        return img, raw_img, mask
-    
+            sample = self.augs(image=img)
+
+        sample["img_path"] = self.img_paths[idx]
+        return sample
 
     def __len__(self) -> int:
 
