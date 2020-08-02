@@ -1,10 +1,10 @@
-device: cuda:0
+device: cuda:1
 patch_size: 128
 
 dataset:
   name: SomicDataset
-  base: /dgx/shared/inoue/somic/dataset/H_ziku_unsupervise
-  angle: 5
+  base: /dgx/shared/momo/inoue/somic/dataset/H_ziku_unsupervise
+  angle: cropped_all
   train: ${dataset.base}/train/normal/${dataset.angle}
   val: ${dataset.base}/val/normal/${dataset.angle}
   test:
@@ -17,7 +17,7 @@ train:
     school:
     student:
     teacher:
-  epochs: 4
+  epochs: 200
   batch_size: 16
   optim:
     name: Adam
@@ -28,9 +28,9 @@ train:
 
 val:
   augs: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
-  data_num: 8
+  data_num: 32
 
 test:
   augs: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
   batch_size: 32
-  unfold_stride: 64
+  unfold_stride: 16

@@ -10,7 +10,10 @@ class School(nn.Module):
         vgg = torchvision.models.vgg19(pretrained=False)
         self.teacher = pretrained_vgg.features[:36]
         self.student = vgg.features[:36]
-        self.teacher
+
+    def initialize_student(self):
+        vgg = torchvision.models.vgg19(pretrained=False)
+        self.student = vgg.features[:36]
 
     def forward(self, x):
         with torch.no_grad():

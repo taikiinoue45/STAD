@@ -27,13 +27,15 @@ def my_app(cfg: T.DictConfig) -> None:
         trainer.load_school_pth()
     else:
         log.info(f"pruning start - {time()}")
-        trainer.run_train_student(is_pruning=True)
+        trainer.is_pruning = True
+        trainer.run_train_student()
         log.info(f"pruning end - {time()}")
+        U.save_pruned_data()
 
         log.info(f"training start - {time()}")
-        trainer.run_train_student(is_pruning=False)
+        trainer.is_pruning = False
+        trainer.run_train_student()
         log.info(f"training end - {time()}")
-
         U.show_val_results(cfg)
         U.show_probabilistic_crop(cfg)
         U.save_loss_csv()

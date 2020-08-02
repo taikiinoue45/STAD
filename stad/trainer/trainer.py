@@ -47,6 +47,7 @@ class Trainer:
             base=self.cfg.dataset.test.anomaly, batch_size=1, augs=self.test_augs
         )
 
+        self.is_pruning = None
         self.school = self.get_school()
         self.school = self.school.to(self.cfg.device)
         self.optimizer = self.get_optimizer()
@@ -55,12 +56,6 @@ class Trainer:
     def get_school(self) -> T.Module:
 
         return stad.models.School()
-
-    def initialize_school(self) -> T.Module:
-
-        self.school = None
-        self.school = self.get_school()
-        self.school = self.school.to(self.cfg.device)
 
     def get_augs(self, train_or_test: str) -> T.Compose:
 
@@ -89,7 +84,7 @@ class Trainer:
 
         self.school.load_state_dict(torch.load(self.cfg.train.pretrained.school))
 
-    def run_train_student(self, is_pruning) -> None:
+    def run_train_student(self) -> None:
 
         self.school.student.train()
         self.school.teacher.eval()
@@ -117,26 +112,32 @@ class Trainer:
                 self.school.student.train()
                 self.school.teacher.eval()
 
-        if is_pruning:
-            li = []
-            pbar = tqdm(self.dataloader["pruning"], desc="pruning")
-            for sample in pbar:
-                img = sample["image"].to(self.cfg.device)
-                img_path = sample["img_path"][0]
-                heatmap = self.compute_heatmap(img)
-                li.append([heatmap.max(), img_path])
-
-            threshold = int(self.cfg.train.pruning_rate * len(self.dataloader["train"].dataset))
-            li = sorted(li, key=lambda x: [0], reverse=True)
-            li = li[:threshold]
-            for _, img_path in li:
-                self.dataloader["train"].dataset.img_paths.remove(img_path)
-                log.info(f"pruned img - {img_path}")
-            self.initialize_school()
+        if self.is_pruning:
+            self.run_pruning()
         else:
-            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-            # https://hydra.cc/docs/tutorial/working_directory
             torch.save(self.school.state_dict(), "school.pth")
+
+    def run_pruning(self) -> None:
+
+        li = []
+        pbar = tqdm(self.dataloader["pruning"], desc="pruning")
+        for sample in pbar:
+            img = sample["image"].to(self.cfg.device)
+            img_path = sample["img_path"][0]
+            heatmap = self.compute_heatmap(img)
+            li.append([heatmap.max(), img_path])
+
+        threshold = int(self.cfg.train.pruning_rate * len(self.dataloader["train"].dataset))
+        li = sorted(li, key=lambda x: [0], reverse=True)
+        li = li[:threshold]
+        for _, img_path in li:
+            self.dataloader["train"].dataset.img_paths.remove(img_path)
+            log.info(f"pruned data - {img_path}")
+
+        # Initialize student network and optimizer
+        self.school.initialize_student()
+        self.school.student.to(self.cfg.device)
+        self.optimizer = self.get_optimizer()
 
     def run_val(self, epoch: int) -> None:
 
@@ -156,17 +157,15 @@ class Trainer:
             else:
                 cumulative_heatmap += heatmap
 
-            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-            # https://hydra.cc/docs/tutorial/working_directory
-            with open(f"{epoch} - {i} - val - {stem}.npy", "wb") as f:
-                np.save(f, heatmap)
+            if not self.is_pruning:
+                with open(f"{epoch} - {i} - val - {stem}.npy", "wb") as f:
+                    np.save(f, heatmap)
 
             if i + 1 == self.cfg.val.data_num:
                 break
 
         # Update heatmap in ProbabilisticCrop
         for i, aug in enumerate(self.train_augs):
-
             if aug.__module__ == "stad.albu.probabilistic_crop":
                 self.dataloader["train"].dataset.augs[i].heatmap = cumulative_heatmap
 
