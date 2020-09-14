@@ -26,7 +26,9 @@ class Trainer:
         self.dataloader = {}
 
         self.dataloader["pruning"] = self.get_dataloader(
-            base=self.cfg.dataset.train, batch_size=1, augs=self.train_augs,
+            base=self.cfg.dataset.train,
+            batch_size=1,
+            augs=self.train_augs,
         )
 
         self.dataloader["train"] = self.get_dataloader(
@@ -265,7 +267,9 @@ class Trainer:
         heatmap[-remainder:] = losses
 
         fold = nn.Fold(
-            output_size=(iH, iW), kernel_size=(pH, pW), stride=self.cfg.test.unfold_stride,
+            output_size=(iH, iW),
+            kernel_size=(pH, pW),
+            stride=self.cfg.test.unfold_stride,
         )
 
         heatmap = heatmap.expand(B, pH * pW, P)
