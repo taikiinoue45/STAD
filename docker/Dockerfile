@@ -5,7 +5,7 @@ ENV LANG C.UTF-8
 WORKDIR /root
 
 
-COPY requirements_apt.txt requirements_apt.txt
+COPY docker/requirements_apt.txt requirements_apt.txt
 RUN set -xe \
         && apt update -y \
         && apt install -y --no-install-recommends $(cat requirements_apt.txt) \
@@ -18,7 +18,7 @@ ENV PATH /opt/conda/bin:$PATH
 ENV PATH /usr/local/cuda-10.2/bin:$PATH
 ENV LD_LIBRARY_PATH /usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH
 
-COPY requirements_pip.txt requirements_pip.txt
+COPY docker/requirements_pip.txt requirements_pip.txt
 RUN set -xe \
         && curl -o ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         && chmod +x ~/miniconda.sh \
@@ -32,5 +32,10 @@ RUN set -xe \
         && rm requirements_pip.txt
 
 
-ENV PYTHONPATH /dgx/github/STAD:$PYTHONPATH
-RUN git clone https://github.com/TaikiInoue/STAD.git /app/STAD
+ENV PYTHONPATH /app/STAD:$PYTHONPATH
+RUN set -xe \
+        && git clone https://github.com/TaikiInoue/STAD.git /app/STAD \
+        && mkdir /app/STAD/data \
+        && cd /app/STAD/data \
+        && wget ftp://guest:GU.205dldo@ftp.softronics.ch/mvtec_anomaly_detection/bottle.tar.xz \
+        && tar -xf bottle.tar.xz
