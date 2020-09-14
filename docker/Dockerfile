@@ -29,6 +29,7 @@ RUN set -xe \
         && /opt/conda/bin/conda clean -ya \
         && pip install --no-cache-dir -r requirements_pip.txt \
         && pip install --no-cache-dir --upgrade hydra-core \
+        && sed -i "s/console, file/file/" /opt/conda/lib/python3.6/site-packages/hydra/conf/hydra/job_logging/default.yaml \
         && rm requirements_pip.txt
 
 
