@@ -33,6 +33,6 @@ class Trainer(
             self.dataset_dict[data_type] = self.init_dataset(data_type)
             self.dataloader_dict[data_type] = self.init_dataloader(data_type)
 
-        self.school = self.init_school()
+        self.school = self.init_school().to(self.cfg.device)
         self.optimizer = self.init_optimizer()
         self.criterion = self.init_criterion()

@@ -45,7 +45,7 @@ def show_val_results(cfg):
 
     # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
     # https://hydra.cc/docs/tutorial/working_directory
-    base = Path(cfg.dataset.val)
+    base = Path(cfg.dataset.base)
     for p in Path(".").glob("* - * - val - *.npy"):
         epoch, idx, _, stem = p.stem.split(" - ")
 

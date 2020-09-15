@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -58,7 +56,7 @@ class TrainerRunTrainValTest:
         for i, sample in enumerate(pbar):
 
             img = sample["image"]
-            stem = Path(sample["img_path"][0]).stem
+            stem = sample["stem"][0]
             heatmap = self.compute_heatmap(img)
 
             if len(cumulative_heatmap) == 0:
@@ -82,20 +80,17 @@ class TrainerRunTrainValTest:
         self.school.teacher.eval()
         self.school.student.eval()
 
-        for anomaly_or_normal in ["anomaly", "normal"]:
-            pbar = tqdm(
-                self.dataloader_dict[anomaly_or_normal], desc=f"test - {anomaly_or_normal}"
-            )
-            for i, sample in enumerate(pbar):
+        pbar = tqdm(self.dataloader_dict["test"], desc="test")
+        for i, sample in enumerate(pbar):
 
-                img = sample["image"]
-                stem = Path(sample["img_path"][0]).stem
-                heatmap = self.compute_heatmap(img)
+            img = sample["image"]
+            stem = sample["stem"][0]
+            heatmap = self.compute_heatmap(img)
 
-                # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
-                # https://hydra.cc/docs/tutorial/working_directory
-                with open(f"{i} - test_{anomaly_or_normal} - {stem}.npy", "wb") as f:
-                    np.save(f, heatmap)
+            # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
+            # https://hydra.cc/docs/tutorial/working_directory
+            with open(f"{i} - test - {stem}.npy", "wb") as f:
+                np.save(f, heatmap)
 
     def patchize(self, img: T.Tensor) -> T.Tensor:
 

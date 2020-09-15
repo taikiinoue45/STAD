@@ -22,7 +22,7 @@ def main(cfg: T.DictConfig) -> None:
 
     trainer = Trainer(cfg)
 
-    if cfg.train.pretrained.school:
+    if cfg.model.school.pretrained:
         trainer.load_school_pth()
     else:
         log.info(f"training start - {time()}")
@@ -34,8 +34,7 @@ def main(cfg: T.DictConfig) -> None:
         U.save_training_time()
 
     trainer.run_test()
-    U.show_test_results(cfg, "normal")
-    U.show_test_results(cfg, "anomaly")
+    U.show_test_results(cfg)
     U.compute_mIoU(cfg)
     U.clean_up()
 

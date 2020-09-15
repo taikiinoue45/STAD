@@ -26,7 +26,7 @@ augs:
 
 dataset:
   name: MVTecDataset
-  base: /app/STAD/data/bottle
+  base: /app/STAD/data
   train:
     query:
       - category == 'bottle' &
@@ -59,7 +59,7 @@ dataloader:
       shuffle: True
   val:
     args:
-      batch_size: 32
+      batch_size: 1
       shuffle: True
   test:
     args:
@@ -79,9 +79,9 @@ criterion:
 
 run:
   train:
-    epochs: 10
+    epochs: 200
   val:
-    data_num: 8
+    data_num: 32
   test:
     batch_size: 32
-    unfold_stride: 64
+    unfold_stride: 16

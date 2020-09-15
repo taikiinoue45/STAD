@@ -1,27 +1,35 @@
 from pathlib import Path
 
-import albumentations as albu
 import cv2
+import pandas as pd
 from torch.utils.data import Dataset
+
+import stad.typehint as T
 
 
 class MVTecDataset(Dataset):
-    def __init__(self, base: Path, augs: albu.Compose) -> None:
+    def __init__(self, cfg: T.DictConfig, augs_dict: T.Dict[str, T.Compose], data_type: str):
 
-        self.img_paths = [str(p) for p in base.glob("*.png")]
-        self.augs = augs
+        self.base = Path(cfg.dataset.base)
+        self.augs = augs_dict[data_type]
+        self.stem_list = []
 
-    def __getitem__(self, idx: int):
+        df = pd.read_csv(self.base / "info.csv")
+        for query in cfg.dataset[data_type].query:
+            stem = df.query(query)["stem"]
+            self.stem_list += stem.to_list()
 
-        img = cv2.imread(self.img_paths[idx])
+    def __getitem__(self, idx: int) -> dict:
+
+        stem = self.stem_list[idx]
+        img = cv2.imread(str(self.base / f"images/{stem}.png"))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        mask = cv2.imread(str(self.base / f"masks/{stem}.png"))
 
-        if self.augs:
-            sample = self.augs(image=img)
-
-        sample["img_path"] = self.img_paths[idx]
+        sample = self.augs(image=img, mask=mask)
+        sample["stem"] = stem
         return sample
 
     def __len__(self) -> int:
 
-        return len(self.img_paths)
+        return len(self.stem_list)

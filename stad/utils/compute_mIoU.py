@@ -10,7 +10,7 @@ def compute_mIoU(cfg) -> None:
     # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
     # https://hydra.cc/docs/tutorial/working_directory
 
-    base = Path(cfg.dataset.test.anomaly)
+    base = Path(cfg.dataset.base)
     max_anomaly_score = -1
     for p in Path(".").glob("* - test_anomaly - *.npy"):
 
@@ -20,6 +20,7 @@ def compute_mIoU(cfg) -> None:
 
     best_mIoU = -1.0
     best_threshold = -1.0
+    eps = 10 ** -5
     for threshold in tqdm(np.linspace(0, max_anomaly_score, 1000)):
 
         IoU_li = []
@@ -38,9 +39,9 @@ def compute_mIoU(cfg) -> None:
 
             intersection = np.sum(heatmap + mask == 2)
             union = np.sum(heatmap + mask != 0)
-            IoU_li.append(intersection / union)
+            IoU_li.append(intersection / (union + eps))
 
-        mIoU = sum(IoU_li) / len(IoU_li)
+        mIoU = sum(IoU_li) / (len(IoU_li) + eps)
 
         if mIoU > best_mIoU:
             best_mIoU = mIoU

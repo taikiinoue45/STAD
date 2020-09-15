@@ -1,8 +1,8 @@
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-
 from pathlib import Path
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 
@@ -41,12 +41,12 @@ def savefig(path_savefig: str, img: np.array, mask: np.array, heatmap: np.array)
     plt.close()
 
 
-def show_test_results(cfg, normal_or_anomaly: str):
+def show_test_results(cfg):
 
     # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
     # https://hydra.cc/docs/tutorial/working_directory
-    base = Path(cfg.dataset.test[normal_or_anomaly])
-    for p in Path(".").glob(f"* - test_{normal_or_anomaly} - *.npy"):
+    base = Path(cfg.dataset.base)
+    for p in Path(".").glob("* - test - *.npy"):
         idx, _, stem = p.stem.split(" - ")
 
         for img_path in base.glob(f"images/{stem}*"):
@@ -59,5 +59,5 @@ def show_test_results(cfg, normal_or_anomaly: str):
         with open(p, "rb") as f:
             heatmap = np.load(f)
 
-        path_savefig = f"{idx} - test_{normal_or_anomaly} - {stem} - result.png"
+        path_savefig = f"{stem} - result.png"
         savefig(path_savefig, img, mask, heatmap)

@@ -9,7 +9,10 @@ class TrainerAugs:
     def init_augs(self, data_type: str) -> T.Compose:
 
         augs = albu.load(self.cfg.augs[data_type].yaml, data_format="yaml")
-        augs = self.update_augs(data_type, augs)
+
+        if self.cfg.augs[data_type].updates:
+            augs = self.update_augs(data_type, augs)
+
         self.save_augs(data_type, augs)
         return augs
 

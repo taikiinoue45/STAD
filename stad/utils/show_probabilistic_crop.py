@@ -1,10 +1,11 @@
+from pathlib import Path
+
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 from .load_log import load_log
-from pathlib import Path
-from mpl_toolkits.axes_grid1 import ImageGrid
 
 
 def savefig(path_savefig: str, img: np.array, cumulative_heatmap: np.array, H: list, W: list):
@@ -47,7 +48,7 @@ def show_probabilistic_crop(cfg):
 
     # CWD is STAD/stad/outputs/yyyy-mm-dd/hh-mm-ss
     # https://hydra.cc/docs/tutorial/working_directory
-    base = Path(cfg.dataset.val)
+    base = Path(cfg.dataset.base)
     log = load_log()
     cumulative_heatmap = np.array([])
     for p in Path(".").glob("* - * - val - *.npy"):
