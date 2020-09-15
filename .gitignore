@@ -5,7 +5,8 @@ experiments
 *.png
 *.jpg
 *.tar.xz
-data/
+data/*
+!data/prepare_mvtec_dataset.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
