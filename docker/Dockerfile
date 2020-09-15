@@ -36,7 +36,6 @@ RUN set -xe \
 ENV PYTHONPATH /app/STAD:$PYTHONPATH
 RUN set -xe \
         && git clone https://github.com/TaikiInoue/STAD.git /app/STAD \
-        && mkdir /app/STAD/data \
         && cd /app/STAD/data \
         && wget ftp://guest:GU.205dldo@ftp.softronics.ch/mvtec_anomaly_detection/bottle.tar.xz \
         && tar -xf bottle.tar.xz \
