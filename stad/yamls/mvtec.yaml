@@ -63,7 +63,7 @@ dataloader:
       shuffle: True
   test:
     args:
-      batch_size: 32
+      batch_size: 1
       shuffle: True
 
 optimizer:
@@ -83,4 +83,5 @@ run:
   val:
     data_num: 8
   test:
+    batch_size: 32
     unfold_stride: 64

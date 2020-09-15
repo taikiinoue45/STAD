@@ -7,10 +7,10 @@ class TrainerCriterion:
 
     cfg: T.DictConfig
 
-    def init_criterion(self, data_type: str) -> T.Loss:
+    def init_criterion(self) -> T.Loss:
 
         criterion_attr = getattr(torch.nn, self.cfg.criterion.name)
-        args = self.cfg.criterion[data_type].args
+        args = self.cfg.criterion.args
         if args:
             return criterion_attr(**args)
         else:

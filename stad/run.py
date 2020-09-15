@@ -9,7 +9,6 @@ import stad.typehint as T
 import stad.utils as U
 from stad.trainer import Trainer
 
-
 log = logging.getLogger(__name__)
 
 config_path = sys.argv[1]
@@ -17,7 +16,7 @@ sys.argv.pop(1)
 
 
 @hydra.main(config_path)
-def my_app(cfg: T.DictConfig) -> None:
+def main(cfg: T.DictConfig) -> None:
 
     os.rename(".hydra", "hydra")
 
@@ -26,14 +25,7 @@ def my_app(cfg: T.DictConfig) -> None:
     if cfg.train.pretrained.school:
         trainer.load_school_pth()
     else:
-        log.info(f"pruning start - {time()}")
-        trainer.is_pruning = True
-        trainer.run_train_student()
-        log.info(f"pruning end - {time()}")
-        U.save_pruned_data()
-
         log.info(f"training start - {time()}")
-        trainer.is_pruning = False
         trainer.run_train_student()
         log.info(f"training end - {time()}")
         U.show_val_results(cfg)
@@ -49,4 +41,4 @@ def my_app(cfg: T.DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    my_app()
+    main()

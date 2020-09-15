@@ -8,7 +8,7 @@ class TrainerOptimizer:
     school: T.Module
     cfg: T.DictConfig
 
-    def init_optimizer(self, model_type: str) -> T.Optimizer:
+    def init_optimizer(self) -> T.Optimizer:
 
         params = self.school.student.parameters()
         optimizer_attr = getattr(torch.optim, self.cfg.optimizer.name)

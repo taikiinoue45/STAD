@@ -13,23 +13,23 @@ class TrainerRunTrainValTest:
     school: T.Module
     cfg: T.DictConfig
     log: T.Logger
-    dataloader: T.DataLoader
+    dataloader_dict: T.Dict[str, T.DataLoader]
     criterion: T.Loss
     optimizer: T.Optimizer
-    augs: T.Compose
+    augs_dict: T.Dict[str, T.Compose]
 
-    def run_train_student(self) -> None:
+    def run_train_student(self):
 
         self.school.student.train()
         self.school.teacher.eval()
 
-        pbar = tqdm(range(1, self.cfg.train.epochs), desc="train")
+        pbar = tqdm(range(1, self.cfg.run.train.epochs), desc="train")
         for epoch in pbar:
 
             self.log.info(f"epoch - {epoch}")
             loss_sum = 0
 
-            for sample in self.dataloader["train"]:
+            for sample in self.dataloader_dict["train"]:
                 img = sample["image"].to(self.cfg.device)
                 surrogate_label, pred = self.school(img)
                 loss = self.criterion(pred, surrogate_label)
@@ -38,23 +38,23 @@ class TrainerRunTrainValTest:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
-            epoch_loss = loss_sum / len(self.dataloader["train"])
+            epoch_loss = loss_sum / len(self.dataloader_dict["train"])
             self.log.info(f"loss - {epoch_loss}")
 
-            if epoch % (self.cfg.train.epochs // 10) == 0:
+            if epoch % (self.cfg.run.train.epochs // 10) == 0:
                 self.run_val(epoch)
                 self.school.student.train()
                 self.school.teacher.eval()
 
         torch.save(self.school.state_dict(), "school.pth")
 
-    def run_val(self, epoch: int) -> None:
+    def run_val(self, epoch: int):
 
         self.school.teacher.eval()
         self.school.student.eval()
         cumulative_heatmap = np.array([])
 
-        pbar = tqdm(self.dataloader["val"], desc="val")
+        pbar = tqdm(self.dataloader_dict["val"], desc="val")
         for i, sample in enumerate(pbar):
 
             img = sample["image"]
@@ -69,21 +69,23 @@ class TrainerRunTrainValTest:
             with open(f"{epoch} - {i} - val - {stem}.npy", "wb") as f:
                 np.save(f, heatmap)
 
-            if i + 1 == self.cfg.val.data_num:
+            if i + 1 == self.cfg.run.val.data_num:
                 break
 
         # Update heatmap in ProbabilisticCrop
-        for i, aug in enumerate(self.augs["train"]):
+        for i, aug in enumerate(self.augs_dict["train"]):
             if aug.__module__ == "stad.albu.probabilistic_crop":
-                self.dataloader["train"].dataset.augs[i].heatmap = cumulative_heatmap
+                self.dataloader_dict["train"].dataset.augs[i].heatmap = cumulative_heatmap
 
-    def run_test(self) -> None:
+    def run_test(self):
 
         self.school.teacher.eval()
         self.school.student.eval()
 
         for anomaly_or_normal in ["anomaly", "normal"]:
-            pbar = tqdm(self.dataloader[anomaly_or_normal], desc=f"test - {anomaly_or_normal}")
+            pbar = tqdm(
+                self.dataloader_dict[anomaly_or_normal], desc=f"test - {anomaly_or_normal}"
+            )
             for i, sample in enumerate(pbar):
 
                 img = sample["image"]
@@ -113,7 +115,7 @@ class TrainerRunTrainValTest:
         pH = self.cfg.patch_size
         pW = self.cfg.patch_size
 
-        unfold = nn.Unfold(kernel_size=(pH, pW), stride=self.cfg.test.unfold_stride)
+        unfold = nn.Unfold(kernel_size=(pH, pW), stride=self.cfg.run.test.unfold_stride)
 
         patches = unfold(img)  # (B, V, P)
         patches = patches.permute(0, 2, 1).contiguous()  # (B, P, V)
@@ -151,14 +153,14 @@ class TrainerRunTrainValTest:
         P, C, pH, pW = patches.shape
 
         heatmap = torch.zeros(P)
-        quotient, remainder = divmod(P, self.cfg.test.batch_size)
+        quotient, remainder = divmod(P, self.cfg.run.test.batch_size)
 
         for i in range(quotient):
 
-            start = i * self.cfg.test.batch_size
-            end = start + self.cfg.test.batch_size
+            start = i * self.cfg.run.test.batch_size
+            end = start + self.cfg.run.test.batch_size
 
-            patch = patches[start:end, :, :, :]  # (self.cfg.test.batch_size, C, pH, pW)
+            patch = patches[start:end, :, :, :]  # (self.cfg.run.test.batch_size, C, pH, pW)
             patch = patch.to(self.cfg.device)
 
             surrogate_label, pred = self.school(patch)
@@ -175,7 +177,7 @@ class TrainerRunTrainValTest:
         fold = nn.Fold(
             output_size=(iH, iW),
             kernel_size=(pH, pW),
-            stride=self.cfg.test.unfold_stride,
+            stride=self.cfg.run.test.unfold_stride,
         )
 
         heatmap = heatmap.expand(B, pH * pW, P)

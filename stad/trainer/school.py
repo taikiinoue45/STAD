@@ -4,12 +4,12 @@ import stad.models
 import stad.typehint as T
 
 
-class TrainerModel:
+class TrainerSchool:
 
     cfg: T.DictConfig
     model: T.Module
 
-    def init_model(self, model_type: str):
+    def init_school(self) -> T.Module:
 
         return stad.models.School()
 
