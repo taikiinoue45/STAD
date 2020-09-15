@@ -1,37 +1,86 @@
 device: cuda:0
 patch_size: 128
 
+model:
+  school:
+    pretrained:
+  student:
+    pretrained:
+  teacher:
+    pretrained:
+
+augs:
+  train:
+    yaml: /app/STAD/stad/yamls/train_augmentations.yaml
+    updates:
+      - name: ProbabilisticCrop
+        args:
+          height: ${patch_size}
+          width: ${patch_size}
+  val:
+    yaml: /app/STAD/stad/yamls/test_augmentations.yaml
+    updates:
+  test:
+    yaml: /app/STAD/stad/yamls/test_augmentations.yaml
+    updates:
+
 dataset:
   name: MVTecDataset
   base: /app/STAD/data/bottle
-  train: ${dataset.base}/train/good
-  val: ${dataset.base}/train/good
+  train:
+    query:
+      - category == 'bottle' &
+        data_type == 'train' &
+        defect_type == 'good'
+  val:
+    query:
+      - category == 'bottle' &
+        data_type == 'train' &
+        defect_type == 'good'
   test:
-    defect: broken_small
-    anomaly: ${dataset.base}/test/${dataset.test.defect}
-    normal: ${dataset.base}/test/good
+    query:
+      - category == 'bottle' &
+        data_type == 'test' &
+        defect_type == 'good'
+      - category == 'bottle' &
+        data_type == 'test' &
+        defect_type == 'broken_small'
+      - category == 'bottle' &
+        data_type == 'test' &
+        defect_type == 'broken_large'
+      - category == 'bottle' &
+        data_type == 'test' &
+        defect_type == 'contamination'
 
-train:
-  augs: /app/STAD/stad/yamls/train_augmentations.yaml
-  pretrained:
-    school:
-    student:
-    teacher:
-  pruning_rate: 0.05
-  epochs: 100
-  batch_size: 16
-  optim:
-    name: Adam
+dataloader:
+  train:
+    args:
+      batch_size: 32
+      shuffle: True
+  val:
+    args:
+      batch_size: 32
+      shuffle: True
+  test:
+    args:
+      batch_size: 32
+      shuffle: True
+
+optimizer:
+  name: Adam
+  args:
     lr: 0.0002
     weight_decay: 0.00001
-  criterion:
-    name: MSELoss
 
-val:
-  augs: /app/STAD/stad/yamls/test_augmentations.yaml
-  data_num: 8
+criterion:
+  name: MSELoss
+  args:
+    reduction: mean
 
-test:
-  augs: /app/STAD/stad/yamls/test_augmentations.yaml
-  batch_size: 32
-  unfold_stride: 64
+run:
+  train:
+    epochs: 10
+  val:
+    data_num: 8
+  test:
+    unfold_stride: 64

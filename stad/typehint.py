@@ -1,4 +1,4 @@
-from typing import TypeVar, Any
+from typing import Any, TypeVar
 
 from nptyping import NDArray
 
@@ -9,3 +9,4 @@ DataLoader = TypeVar("torch.utils.data.DataLoader")
 Module = TypeVar("torch.nn.Module")
 DictConfig = TypeVar("omegaconf.DictConfig")
 Compose = TypeVar("stad.albu.Compose")
+Logger = TypeVar("logging.Logger")
