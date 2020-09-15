@@ -39,4 +39,5 @@ RUN set -xe \
         && mkdir /app/STAD/data \
         && cd /app/STAD/data \
         && wget ftp://guest:GU.205dldo@ftp.softronics.ch/mvtec_anomaly_detection/bottle.tar.xz \
-        && tar -xf bottle.tar.xz
+        && tar -xf bottle.tar.xz \
+        && python /app/STAD/data/prepare_mvtec_dataset.py
