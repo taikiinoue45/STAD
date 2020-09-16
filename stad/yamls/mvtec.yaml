@@ -1,32 +1,27 @@
 device: cuda:0
 patch_size: 128
 
-model:
-  school:
-    pretrained:
-  student:
-    pretrained:
-  teacher:
-    pretrained:
+school:
+  model_name: efficientnet-b0
 
 augs:
   train:
-    yaml: /app/STAD/stad/yamls/train_augmentations.yaml
+    yaml: /dgx/github/STAD/stad/yamls/train_augmentations.yaml
     updates:
       - name: ProbabilisticCrop
         args:
           height: ${patch_size}
           width: ${patch_size}
   val:
-    yaml: /app/STAD/stad/yamls/test_augmentations.yaml
+    yaml: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
     updates:
   test:
-    yaml: /app/STAD/stad/yamls/test_augmentations.yaml
+    yaml: /dgx/github/STAD/stad/yamls/test_augmentations.yaml
     updates:
 
 dataset:
   name: MVTecDataset
-  base: /app/STAD/data
+  base: /dgx/github/STAD/data
   train:
     query:
       - category == 'bottle' &

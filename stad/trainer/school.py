@@ -11,7 +11,7 @@ class TrainerSchool:
 
     def init_school(self) -> T.Module:
 
-        return stad.models.School()
+        return stad.models.School(self.cfg)
 
     def load_pretrained_model(self):
 

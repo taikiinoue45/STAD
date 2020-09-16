@@ -22,16 +22,13 @@ def main(cfg: T.DictConfig) -> None:
 
     trainer = Trainer(cfg)
 
-    if cfg.model.school.pretrained:
-        trainer.load_school_pth()
-    else:
-        log.info(f"training start - {time()}")
-        trainer.run_train_student()
-        log.info(f"training end - {time()}")
-        U.show_val_results(cfg)
-        U.show_probabilistic_crop(cfg)
-        U.save_loss_csv()
-        U.save_training_time()
+    log.info(f"training start - {time()}")
+    trainer.run_train_student()
+    log.info(f"training end - {time()}")
+    U.show_val_results(cfg)
+    U.show_probabilistic_crop(cfg)
+    U.save_loss_csv()
+    U.save_training_time()
 
     trainer.run_test()
     U.show_test_results(cfg)

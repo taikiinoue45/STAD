@@ -29,8 +29,12 @@ class TrainerRunTrainValTest:
 
             for sample in self.dataloader_dict["train"]:
                 img = sample["image"].to(self.cfg.device)
-                surrogate_label, pred = self.school(img)
-                loss = self.criterion(pred, surrogate_label)
+                tch_feature_list, std_feature_list = self.school(img)
+
+                loss = 0
+                for tch_feature, std_feature in zip(tch_feature_list, std_feature_list):
+                    loss += self.criterion(std_feature, tch_feature)
+
                 loss_sum += loss.item()
                 loss.backward()
                 self.optimizer.step()
@@ -117,14 +121,19 @@ class TrainerRunTrainValTest:
         patches = patches.view(-1, C, pH, pW)  # (P, C, pH, pW)
         return patches
 
-    def compute_squared_l2_distance(self, pred: T.Tensor, surrogate_label: T.Tensor) -> T.Tensor:
+    def compute_squared_l2_distance(
+        self, std_feature_list: T.Tensor, tch_feature_list: T.Tensor
+    ) -> T.Tensor:
 
-        losses = (pred - surrogate_label) ** 2
-        losses = losses.view(losses.shape[0], -1)
-        losses = torch.mean(losses, dim=1)
-        losses = losses.cpu().detach()
+        loss_sum = 0
+        for tch_feature, std_feature in zip(tch_feature_list, std_feature_list):
 
-        return losses
+            losses = (std_feature - tch_feature) ** 2
+            losses = losses.view(losses.shape[0], -1)
+            losses = torch.mean(losses, dim=1)
+            loss_sum += losses.cpu().detach()
+
+        return loss_sum
 
     def compute_heatmap(self, img: T.Tensor) -> T.NDArray[(T.Any, T.Any), float]:
 
@@ -158,15 +167,15 @@ class TrainerRunTrainValTest:
             patch = patches[start:end, :, :, :]  # (self.cfg.run.test.batch_size, C, pH, pW)
             patch = patch.to(self.cfg.device)
 
-            surrogate_label, pred = self.school(patch)
-            losses = self.compute_squared_l2_distance(pred, surrogate_label)
+            tch_feature_list, std_feature_list = self.school(patch)
+            losses = self.compute_squared_l2_distance(std_feature_list, tch_feature_list)
             heatmap[start:end] = losses
 
         patch = patches[-remainder:, :, :, :]
         patch = patch.to(self.cfg.device)
 
-        surrogate_label, pred = self.school(patch)
-        losses = self.compute_squared_l2_distance(pred, surrogate_label)
+        tch_feature_list, std_feature_list = self.school(patch)
+        losses = self.compute_squared_l2_distance(std_feature_list, tch_feature_list)
         heatmap[-remainder:] = losses
 
         fold = nn.Fold(

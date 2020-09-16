@@ -1,22 +1,19 @@
 import torch
 import torch.nn as nn
-import torchvision
+
+import stad.typehint as T
+from stad.models import EfficientNet
 
 
 class School(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg: T.DictConfig):
         super().__init__()
-        pretrained_vgg = torchvision.models.vgg19(pretrained=True)
-        vgg = torchvision.models.vgg19(pretrained=False)
-        self.teacher = pretrained_vgg.features[:36]
-        self.student = vgg.features[:36]
 
-    def initialize_student(self):
-        vgg = torchvision.models.vgg19(pretrained=False)
-        self.student = vgg.features[:36]
+        self.student = EfficientNet.from_name(cfg.school.model_name)
+        self.teacher = EfficientNet.from_pretrained(cfg.school.model_name)
 
     def forward(self, x):
         with torch.no_grad():
-            surrogate_label = self.teacher(x)
-        pred = self.student(x)
-        return surrogate_label, pred
+            teacher_feature_list = self.teacher.get_feature_list(x)
+        student_feature_list = self.student.get_feature_list(x)
+        return teacher_feature_list, student_feature_list
