@@ -37,6 +37,7 @@ ENV PYTHONPATH /app/STAD:$PYTHONPATH
 RUN set -xe \
         && git clone https://github.com/TaikiInoue/STAD.git /app/STAD \
         && cd /app/STAD/data \
+        && git checkout da685e3e2b934cccf3cebf147ff871866e74a293 \
         && wget ftp://guest:GU.205dldo@ftp.softronics.ch/mvtec_anomaly_detection/bottle.tar.xz \
         && tar -xf bottle.tar.xz \
         && python /app/STAD/data/prepare_mvtec_dataset.py
