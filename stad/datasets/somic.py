@@ -18,7 +18,7 @@ class SomicDataset(Dataset):
         root: Union[Path, str],
         color_type: Literal["color", "gray"],
         labelname_to_label: Dict[str, int],
-        queries: List[str],
+        query_list: List[str],
         preprocess: Compose,
         debug: bool,
     ) -> None:
@@ -27,7 +27,7 @@ class SomicDataset(Dataset):
         Args:
             root (Union[Path, str]): Path to */somic-data/dataset directory
             labelname_to_label (Dict[str, int]): Dict to convert label name to label
-            queries (List[str]): Query list to extract arbitrary rows from info.csv
+            query_list (List[str]): Query list to extract arbitrary rows from info.csv
             preprocess (Composite): List of transforms
             debug (bool): If true, preprocessed images are saved
         """
@@ -39,9 +39,9 @@ class SomicDataset(Dataset):
         self.debug = debug
 
         df = pd.read_csv(self.root / "info.csv")
-        self.stems = []
-        for q in queries:
-            self.stems += df.query(q)["stem"].to_list()
+        self.stem_list = []
+        for q in query_list:
+            self.stem_list += df.query(q)["stem"].to_list()
 
         self.default_labelname_to_label = {
             "kizu_dakon": 1,
@@ -54,14 +54,14 @@ class SomicDataset(Dataset):
 
     def _load_img(self, index: int) -> NDArray:
 
-        img_path = self.root / f"{self.color_type}_images/{self.stems[index]}.jpg"
+        img_path = self.root / f"{self.color_type}_images/{self.stem_list[index]}.jpg"
         img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
         assert len(img.shape) == 3
         return img
 
     def _load_mask(self, index: int) -> NDArray:
 
-        mask_path = self.root / f"masks/{self.stems[index]}.png"
+        mask_path = self.root / f"masks/{self.stem_list[index]}.png"
         mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
         assert len(mask.shape) == 2
         return mask
@@ -97,7 +97,7 @@ class SomicDataset(Dataset):
         plt.tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
 
         plt.tight_layout()
-        plt.savefig(f"{self.stems[index]}.png")
+        plt.savefig(f"{self.stem_list[index]}.png")
 
     def __getitem__(self, index: int) -> Tuple[Tensor, Tensor]:
 
@@ -114,4 +114,4 @@ class SomicDataset(Dataset):
 
     def __len__(self) -> int:
 
-        return len(self.stems)
+        return len(self.stem_list)
