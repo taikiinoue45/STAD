@@ -1,35 +1,117 @@
 from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
 import cv2
+import matplotlib.pyplot as plt
 import pandas as pd
+from numpy import ndarray as NDArray
+from torch import Tensor
 from torch.utils.data import Dataset
+from typing_extensions import Literal
 
-import stad.typehint as T
+from stad.transforms import Compose
 
 
 class SomicDataset(Dataset):
-    def __init__(self, cfg: T.DictConfig, augs_dict: T.Dict[str, T.Compose], data_type: str):
+    def __init__(
+        self,
+        root: Union[Path, str],
+        color_type: Literal["color", "gray"],
+        labelname_to_label: Dict[str, int],
+        queries: List[str],
+        preprocess: Compose,
+        debug: bool,
+    ) -> None:
 
-        self.base = Path(cfg.dataset.base)
-        self.augs = augs_dict[data_type]
-        self.stem_list = []
+        """
+        Args:
+            root (Union[Path, str]): Path to */somic-data/dataset directory
+            labelname_to_label (Dict[str, int]): Dict to convert label name to label
+            queries (List[str]): Query list to extract arbitrary rows from info.csv
+            preprocess (Composite): List of transforms
+            debug (bool): If true, preprocessed images are saved
+        """
 
-        df = pd.read_csv(self.base / "info.csv")
-        for query in cfg.dataset[data_type].query:
-            stem = df.query(query)["stem"]
-            self.stem_list += stem.to_list()
+        self.root = Path(root)
+        self.color_type = color_type
+        self.labelname_to_label = labelname_to_label
+        self.preprocess = preprocess
+        self.debug = debug
 
-    def __getitem__(self, idx: int) -> dict:
+        df = pd.read_csv(self.root / "info.csv")
+        self.stems = []
+        for q in queries:
+            self.stems += df.query(q)["stem"].to_list()
 
-        stem = self.stem_list[idx]
-        img = cv2.imread(self.base / f"images/{stem}.png")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(self.base / f"masks/{stem}.png")
+        self.default_labelname_to_label = {
+            "kizu_dakon": 1,
+            "kizu_ware": 2,
+            "kizu_zairyou": 3,
+            "ignore_shallow": 4,
+            "ignore_cutting": 5,
+            "ignore_oil": 6,
+        }
 
-        sample = self.augs(image=img, mask=mask)
-        sample["stem"] = stem
-        return sample
+    def _load_img(self, index: int) -> NDArray:
+
+        img_path = self.root / f"{self.color_type}_images/{self.stems[index]}.jpg"
+        img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
+        assert len(img.shape) == 3
+        return img
+
+    def _load_mask(self, index: int) -> NDArray:
+
+        mask_path = self.root / f"masks/{self.stems[index]}.png"
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        assert len(mask.shape) == 2
+        return mask
+
+    def _update_mask_label(self, mask: NDArray) -> NDArray:
+
+        for labelname, label in self.labelname_to_label.items():
+            default_label = self.default_labelname_to_label[labelname]
+            if label != default_label:
+                mask[mask == default_label] = label
+        return mask
+
+    def _save_transformed_images(self, index: int, img: Tensor, mask: Tensor) -> None:
+
+        img = img.permute(1, 2, 0).detach().numpy()
+        mask = mask.detach().numpy()
+        plt.figure(figsize=(9, 3))
+
+        plt.subplot(131)
+        plt.title("Input Image")
+        plt.imshow(img)
+        plt.tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
+
+        plt.subplot(132)
+        plt.title("Ground Truth Mask")
+        plt.imshow(mask)
+        plt.tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
+
+        plt.subplot(133)
+        plt.title("Supervision")
+        plt.imshow(img)
+        plt.imshow(mask, alpha=0.5)
+        plt.tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)
+
+        plt.tight_layout()
+        plt.savefig(f"{self.stems[index]}.png")
+
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor]:
+
+        img = self._load_img(index)
+        mask = self._load_mask(index)
+        mask = self._update_mask_label(mask)
+
+        data_dict = self.preprocess(image=img, mask=mask)
+
+        if self.debug:
+            self._save_transformed_images(index, data_dict["image"], data_dict["mask"])
+
+        return (data_dict["Image"], data_dict["Mask"])
 
     def __len__(self) -> int:
 
-        return len(self.stem_list)
+        return len(self.stems)
