@@ -1,0 +1,33 @@
+name: coding-style
+
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+jobs:
+  coding-style:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.6
+
+    - name: Install
+      run: |
+        python -m pip install -U pip
+        pip install -U black hacking isort mypy blackdoc
+    - name: black
+      run: black . --check --diff
+    - name: isort
+      run: isort . --check --diff
+    - name: flake8
+      run: flake8 .
+    - name: mypy
+      run: mypy .
+    - name: blackdoc
+      run: blackdoc . --check --diff
