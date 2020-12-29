@@ -1,0 +1,98 @@
+preprocess:
+  train:
+    yaml: /dgx/github/STAD/stad/transforms/train.yaml
+  val:
+    yaml: /dgx/github/STAD/stad/transforms/val_test.yaml
+  test:
+    yaml: /dgx/github/STAD/stad/transforms/val_test.yaml
+
+dataset:
+  train:
+    name: stad.datasets - SomicDataset
+    args:
+      dataset_dir: /dgx/shared/momo/inoue/somic-data/dataset
+      color_type: color
+      labelname_to_label:
+        kizu_dakon: 1
+        kizu_ware: 1
+        kizu_zairyou: 1
+        ignore_shallow: 0
+        ignore_cutting: 0
+        ignore_oil: 0
+      query_list:
+      - data_block_id <= 7 & product_type=='H' & camera_id==2 & crop_type=='ziku' & camera_angle==11 & is_anomaly_product==0
+      - data_block_id <= 7 & product_type=='H' & camera_id==2 & crop_type=='ziku' & camera_angle==11 & is_anomaly_product==1 & is_anomaly_image==0
+      debug: false
+  val:
+    name: stad.datasets - SomicDataset
+    args:
+      dataset_dir: /dgx/shared/momo/inoue/somic-data/dataset
+      color_type: color
+      labelname_to_label:
+        kizu_dakon: 1
+        kizu_ware: 1
+        kizu_zairyou: 1
+        ignore_shallow: 0
+        ignore_cutting: 0
+        ignore_oil: 0
+      query_list:
+      - data_block_id == 8 & product_type=='H' & camera_id==2 & crop_type=='ziku' & camera_angle==11 & is_anomaly_product==0
+      - data_block_id == 8 & product_type=='H' & camera_id==2 & crop_type=='ziku' & camera_angle==11 & is_anomaly_image==1
+      debug: false
+  test:
+    name: stad.datasets - SomicDataset
+    args:
+      dataset_dir: /dgx/shared/momo/inoue/somic-data/dataset
+      color_type: color
+      labelname_to_label:
+        kizu_dakon: 1
+        kizu_ware: 1
+        kizu_zairyou: 1
+        ignore_shallow: 0
+        ignore_cutting: 0
+        ignore_oil: 0
+      query_list:
+      - data_block_id == 9 & product_type=='H' & camera_id==2 & crop_type=='ziku' & camera_angle==11
+      debug: false
+
+dataloader:
+  train:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 4
+      num_workers: 0
+      shuffle: true
+  val:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 1
+      num_workers: 0
+      shuffle: true
+  test:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 1
+      num_workers: 0
+      shuffle: true
+
+school:
+  name: stad.schools - VGG19
+  args: null
+
+optimizer:
+  name: torch.optim - Adam
+  args:
+    lr: 0.0001
+    weight_decay: 1.0e-06
+
+criterion:
+  name: torch.nn - MSELoss
+  args:
+    reduction: mean
+
+runner:
+  epochs: 200
+  num_patch_batches: 8
+  patch_size: 128
+  unfold_stride: 64
+  device: cuda:0

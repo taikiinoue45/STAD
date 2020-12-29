@@ -1,42 +1,27 @@
-import logging
 import os
 import sys
-from time import time
 
 import hydra
+import mlflow
+from omegaconf import DictConfig
 
-import stad.typehint as T
-import stad.utils as U
-from stad.trainer import Trainer
+from stad.runner import Runner
 
-log = logging.getLogger(__name__)
+
+mlflow.set_tracking_uri("databricks")
+mlflow.set_experiment("/Users/inoue@nablas.com/stad")
 
 config_path = sys.argv[1]
 sys.argv.pop(1)
 
 
 @hydra.main(config_path)
-def main(cfg: T.DictConfig) -> None:
+def main(cfg: DictConfig) -> None:
 
     os.rename(".hydra", "hydra")
 
-    trainer = Trainer(cfg)
-
-    if cfg.model.school.pretrained:
-        trainer.load_school_pth()
-    else:
-        log.info(f"training start - {time()}")
-        trainer.run_train_student()
-        log.info(f"training end - {time()}")
-        U.show_val_results(cfg)
-        U.show_probabilistic_crop(cfg)
-        U.save_loss_csv()
-        U.save_training_time()
-
-    trainer.run_test()
-    U.show_test_results(cfg)
-    U.compute_mIoU(cfg)
-    U.clean_up()
+    runner = Runner(cfg)
+    runner.run()
 
 
 if __name__ == "__main__":

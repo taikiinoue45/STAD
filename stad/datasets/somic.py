@@ -15,7 +15,7 @@ from stad.transforms import Compose
 class SomicDataset(Dataset):
     def __init__(
         self,
-        root: Union[Path, str],
+        dataset_dir: Union[Path, str],
         color_type: Literal["color", "gray"],
         labelname_to_label: Dict[str, int],
         query_list: List[str],
@@ -25,20 +25,20 @@ class SomicDataset(Dataset):
 
         """
         Args:
-            root (Union[Path, str]): Path to */somic-data/dataset directory
+            dataset_dir (Union[Path, str]): Path to */somic-data/dataset directory
             labelname_to_label (Dict[str, int]): Dict to convert label name to label
             query_list (List[str]): Query list to extract arbitrary rows from info.csv
             preprocess (Composite): List of transforms
             debug (bool): If true, preprocessed images are saved
         """
 
-        self.root = Path(root)
+        self.dataset_dir = Path(dataset_dir)
         self.color_type = color_type
         self.labelname_to_label = labelname_to_label
         self.preprocess = preprocess
         self.debug = debug
 
-        df = pd.read_csv(self.root / "info.csv")
+        df = pd.read_csv(self.dataset_dir / "info.csv")
         self.stem_list = []
         for q in query_list:
             self.stem_list += df.query(q)["stem"].to_list()
@@ -52,19 +52,23 @@ class SomicDataset(Dataset):
             "ignore_oil": 6,
         }
 
-    def _load_img(self, index: int) -> NDArray:
+    def __getitem__(self, index: int) -> Tuple[str, Tensor, Tensor]:
 
-        img_path = self.root / f"{self.color_type}_images/{self.stem_list[index]}.jpg"
-        img = cv2.imread(str(img_path), cv2.IMREAD_UNCHANGED)
-        assert len(img.shape) == 3
-        return img
+        stem = self.stem_list[index]
 
-    def _load_mask(self, index: int) -> NDArray:
+        img_path = str(self.dataset_dir / f"{self.color_type}_images/{stem}.jpg")
+        img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
 
-        mask_path = self.root / f"masks/{self.stem_list[index]}.png"
-        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-        assert len(mask.shape) == 2
-        return mask
+        mask_path = str(self.dataset_dir / f"masks/{stem}.png")
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        mask = self._update_mask_label(mask)
+
+        data_dict = self.preprocess(image=img, mask=mask)
+
+        if self.debug:
+            self._save_transformed_images(index, data_dict["image"], data_dict["mask"])
+
+        return (img_path, data_dict["image"], data_dict["mask"])
 
     def _update_mask_label(self, mask: NDArray) -> NDArray:
 
@@ -98,19 +102,6 @@ class SomicDataset(Dataset):
 
         plt.tight_layout()
         plt.savefig(f"{self.stem_list[index]}.png")
-
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor]:
-
-        img = self._load_img(index)
-        mask = self._load_mask(index)
-        mask = self._update_mask_label(mask)
-
-        data_dict = self.preprocess(image=img, mask=mask)
-
-        if self.debug:
-            self._save_transformed_images(index, data_dict["image"], data_dict["mask"])
-
-        return (data_dict["Image"], data_dict["Mask"])
 
     def __len__(self) -> int:
 

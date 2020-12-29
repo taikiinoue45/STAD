@@ -1,6 +1,7 @@
 # Additional
 outputs
 experiments
+mlruns
 .vscode
 *.png
 *.jpg

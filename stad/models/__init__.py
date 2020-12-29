@@ -1,1 +1,0 @@
-from .school import School

@@ -1,4 +1,4 @@
-__version__: 0.4.6
+__version__: 0.5.1
 transform:
   __class_fullname__: albumentations.core.composition.Compose
   additional_targets: {}
@@ -6,24 +6,27 @@ transform:
   keypoint_params: null
   p: 1.0
   transforms:
-  - __class_fullname__: stad.albu.probabilistic_crop.ProbabilisticCrop
+  - __class_fullname__: albumentations.augmentations.transforms.RandomCrop
     always_apply: false
     height: 128
     p: 1
     width: 128
+  - __class_fullname__: albumentations.augmentations.transforms.HorizontalFlip
+    always_apply: false
+    p: 1
+  - __class_fullname__: albumentations.augmentations.transforms.VerticalFlip
+    always_apply: false
+    p: 1
   - __class_fullname__: albumentations.core.composition.OneOf
-    p: 0.5
-    transforms:
-    - __class_fullname__: albumentations.augmentations.transforms.HorizontalFlip
-      always_apply: false
-      p: 1
-    - __class_fullname__: albumentations.augmentations.transforms.VerticalFlip
-      always_apply: false
-      p: 1
-  - __class_fullname__: albumentations.core.composition.OneOf
-    p: 0.3
+    p: 1
     transforms:
     - __class_fullname__: albumentations.augmentations.transforms.RandomContrast
+      always_apply: false
+      limit:
+      - -0.2
+      - 0.2
+      p: 1
+    - __class_fullname__: albumentations.augmentations.transforms.RandomBrightness
       always_apply: false
       limit:
       - -0.2
@@ -35,12 +38,6 @@ transform:
       gamma_limit:
       - 80
       - 120
-      p: 1
-    - __class_fullname__: albumentations.augmentations.transforms.RandomBrightness
-      always_apply: false
-      limit:
-      - -0.2
-      - 0.2
       p: 1
   - __class_fullname__: albumentations.augmentations.transforms.Normalize
     always_apply: false
@@ -55,5 +52,6 @@ transform:
     - 0.224
     - 0.225
   - __class_fullname__: albumentations.pytorch.transforms.ToTensorV2
-    always_apply: false
+    always_apply: true
     p: 1
+    transpose_mask: false

@@ -1,4 +1,4 @@
-__version__: 0.4.6
+__version__: 0.5.1
 transform:
   __class_fullname__: albumentations.core.composition.Compose
   additional_targets: {}
@@ -19,5 +19,6 @@ transform:
     - 0.224
     - 0.225
   - __class_fullname__: albumentations.pytorch.transforms.ToTensorV2
-    always_apply: false
+    always_apply: true
     p: 1
+    transpose_mask: false
