@@ -1,3 +1,6 @@
+alias:
+  category: bottle
+
 preprocess:
   train:
     yaml: /dgx/github/STAD/stad/transforms/train.yaml
@@ -12,23 +15,14 @@ dataset:
     args:
       data_dir: /dgx/github/STAD/data
       query_list:
-      - mode=='train' & category=='bottle' & defect=='good'
+      - mode=='train' & category=='${alias.category}' & defect=='good'
       debug: false
   val:
     name: stad.datasets - MVTecDataset
     args:
       data_dir: /dgx/github/STAD/data
       query_list:
-      - mode=='test' & category=='bottle' & defect=='good'
-      - mode=='test' & category=='bottle' & defect=='broken_small'
-      debug: false
-  test:
-    name: stad.datasets - MVTecDataset
-    args:
-      data_dir: /dgx/github/STAD/data
-      query_list:
-      - mode=='test' & category=='bottle' & defect=='good'
-      - mode=='test' & category=='bottle' & defect=='broken_small'
+      - mode=='test' & category=='${alias.category}'
       debug: false
 
 dataloader:
@@ -71,4 +65,4 @@ runner:
   num_patch_batches: 32
   patch_size: 128
   unfold_stride: 32
-  device: cuda:1
+  device: cuda:2
