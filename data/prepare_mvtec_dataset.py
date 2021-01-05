@@ -1,65 +1,68 @@
 import os
 from pathlib import Path
+from typing import Dict, List
 
 import cv2
 import numpy as np
 import pandas as pd
+from pandas import DataFrame
+from tqdm import tqdm
 
 
-def create_info_csv() -> pd.DataFrame:
+def create_info_csv() -> DataFrame:
 
-    base = Path("/app/STAD/data")
-    di: dict = {
-        "old_image_path": [],
+    mvtec_dir = Path("/dgx/github/STAD/data/MVTec")
+    di: Dict[str, List[str]] = {
+        "old_img_path": [],
         "old_stem": [],
-        "defect_type": [],
-        "data_type": [],
+        "defect": [],
+        "mode": [],
         "category": [],
     }
-    for p in base.glob("*/*/*/*.png"):
-        di["old_image_path"].append(str(p))
+
+    for p in mvtec_dir.glob("*/[!ground]*/*/*.png"):
+        di["old_img_path"].append(str(p))
         di["old_stem"].append(p.stem)
-        di["defect_type"].append(p.parents[0].name)
-        di["data_type"].append(p.parents[1].name)
+        di["defect"].append(p.parents[0].name)
+        di["mode"].append(p.parents[1].name)  # train or test
         di["category"].append(p.parents[2].name)
 
     df = pd.DataFrame(di)
-    df = df.loc[df["data_type"] != "ground_truth", :]
-    df["stem"] = -1
-    df["old_mask_path"] = -1
+    df["stem"] = ""
+    df["old_mask_path"] = ""
     for i in df.index:
         old_stem = df.loc[i, "old_stem"]
-        defect_type = df.loc[i, "defect_type"]
-        data_type = df.loc[i, "data_type"]
+        defect = df.loc[i, "defect"]
+        mode = df.loc[i, "mode"]
         category = df.loc[i, "category"]
 
-        stem = f"{category}_{data_type}_{defect_type}_{old_stem}"
-        old_mask_path = f"/app/STAD/data/{category}/ground_truth/{defect_type}/{old_stem}_mask.png"
+        stem = f"{category}_{mode}_{defect}_{old_stem}"
+        old_mask_path = str(mvtec_dir / f"{category}/ground_truth/{defect}/{old_stem}_mask.png")
         df.loc[i, "stem"] = stem
         df.loc[i, "old_mask_path"] = old_mask_path
 
-    df.to_csv("/app/STAD/data/info.csv", index=False)
+    df.to_csv("/dgx/github/STAD/data/info.csv", index=False)
     return df
 
 
-def move_images_and_masks(df: pd.DataFrame):
+def move_images_and_masks(df: pd.DataFrame) -> None:
 
-    os.mkdir("/app/STAD/data/images")
-    os.mkdir("/app/STAD/data/masks")
+    os.mkdir("/dgx/github/STAD/data/images")
+    os.mkdir("/dgx/github/STAD/data/masks")
 
-    for i in df.index:
-        old_image_path = df.loc[i, "old_image_path"]
+    for i in tqdm(df.index):
+        old_img_path = df.loc[i, "old_img_path"]
         old_mask_path = df.loc[i, "old_mask_path"]
         stem = df.loc[i, "stem"]
 
         if os.path.exists(old_mask_path):
-            os.rename(old_mask_path, f"/app/STAD/data/masks/{stem}.png")
+            os.rename(old_mask_path, f"/dgx/github/STAD/data/masks/{stem}.png")
         else:
-            img = cv2.imread(old_image_path)
+            img = cv2.imread(old_img_path)
             mask = np.zeros(img.shape)
-            cv2.imwrite(f"/app/STAD/data/masks/{stem}.png", mask)
+            cv2.imwrite(f"/dgx/github/STAD/data/masks/{stem}.png", mask)
 
-        os.rename(old_image_path, f"/app/STAD/data/images/{stem}.png")
+        os.rename(old_img_path, f"/dgx/github/STAD/data/images/{stem}.png")
 
 
 if __name__ == "__main__":

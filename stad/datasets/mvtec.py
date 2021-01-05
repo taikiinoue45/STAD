@@ -1,23 +1,19 @@
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import cv2
 import matplotlib.pyplot as plt
 import pandas as pd
-from numpy import ndarray as NDArray
 from torch import Tensor
 from torch.utils.data import Dataset
-from typing_extensions import Literal
 
 from stad.transforms import Compose
 
 
-class SomicDataset(Dataset):
+class MVTecDataset(Dataset):
     def __init__(
         self,
-        dataset_dir: Union[Path, str],
-        color_type: Literal["color", "gray"],
-        labelname_to_label: Dict[str, int],
+        data_dir: Union[Path, str],
         query_list: List[str],
         preprocess: Compose,
         debug: bool,
@@ -25,44 +21,32 @@ class SomicDataset(Dataset):
 
         """
         Args:
-            dataset_dir (Union[Path, str]): Path to */somic-data/dataset directory
-            labelname_to_label (Dict[str, int]): Dict to convert label name to label
+            data_dir (Union[Path, str]): Path to directory with info.csv, images/ and masks/
             query_list (List[str]): Query list to extract arbitrary rows from info.csv
             preprocess (Composite): List of transforms
             debug (bool): If true, preprocessed images are saved
         """
 
-        self.dataset_dir = Path(dataset_dir)
-        self.color_type = color_type
-        self.labelname_to_label = labelname_to_label
+        self.data_dir = Path(data_dir)
         self.preprocess = preprocess
         self.debug = debug
 
-        df = pd.read_csv(self.dataset_dir / "info.csv")
+        df = pd.read_csv(self.data_dir / "info.csv")
         self.stem_list = []
         for q in query_list:
             self.stem_list += df.query(q)["stem"].to_list()
-
-        self.default_labelname_to_label = {
-            "kizu_dakon": 1,
-            "kizu_ware": 2,
-            "kizu_zairyou": 3,
-            "ignore_shallow": 4,
-            "ignore_cutting": 5,
-            "ignore_oil": 6,
-        }
 
     def __getitem__(self, index: int) -> Tuple[str, Tensor, Tensor]:
 
         stem = self.stem_list[index]
 
-        img_path = str(self.dataset_dir / f"{self.color_type}_images/{stem}.jpg")
+        img_path = str(self.data_dir / f"images/{stem}.png")
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        mask_path = str(self.dataset_dir / f"masks/{stem}.png")
+        mask_path = str(self.data_dir / f"masks/{stem}.png")
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        mask = self._update_mask_label(mask)
+        mask[mask != 0] = 1
 
         data_dict = self.preprocess(image=img, mask=mask)
 
@@ -70,14 +54,6 @@ class SomicDataset(Dataset):
             self._save_transformed_images(index, data_dict["image"], data_dict["mask"])
 
         return (img_path, data_dict["image"], data_dict["mask"])
-
-    def _update_mask_label(self, mask: NDArray) -> NDArray:
-
-        for labelname, label in self.labelname_to_label.items():
-            default_label = self.default_labelname_to_label[labelname]
-            if label != default_label:
-                mask[mask == default_label] = label
-        return mask
 
     def _save_transformed_images(self, index: int, img: Tensor, mask: Tensor) -> None:
 

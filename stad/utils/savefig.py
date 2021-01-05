@@ -30,7 +30,8 @@ def savefig(
             cbar_pad=0.15,
         )
 
-        img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         grid[0].imshow(img)
         grid[0].tick_params(labelbottom=False, labelleft=False, bottom=False, left=False)

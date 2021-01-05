@@ -1,4 +1,5 @@
+from .mvtec import MVTecDataset
 from .somic import SomicDataset
 
 
-__all__ = ["SomicDataset"]
+__all__ = ["MVTecDataset", "SomicDataset"]

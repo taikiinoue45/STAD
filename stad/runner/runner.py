@@ -17,28 +17,30 @@ from stad.utils import savefig
 class Runner(BaseRunner):
     def run(self) -> None:
 
-        pbar = tqdm(range(self.cfg.runner.epochs), desc="epochs")
+        pbar = tqdm(range(1, self.cfg.runner.epochs + 1), desc="epochs")
         for epoch in pbar:
-            os.makedirs(f"epochs/{epoch}")
             self._train(epoch)
-            self._validate(epoch)
+            if epoch % 20 == 0:
+                os.makedirs(f"epochs/{epoch}")
+                self._validate(epoch)
         self._test()
 
     def _train(self, epoch: int) -> None:
 
         self.school.student.train()
         self.school.teacher.eval()
-        loss_list = []
-        for _, img, mask in self.dataloader_dict["train"]:
-            img = img.to(self.cfg.runner.device)
-            student_pred, teacher_pred = self.school(img)
-            loss = self.criterion(student_pred, teacher_pred)
-            loss_list.append(loss.item())
-            loss.backward()
+        all_losses = []
+        for _, mb_imgs, mb_masks in self.dataloader_dict["train"]:
+
+            mb_imgs = mb_imgs.to(self.cfg.runner.device)
+            mb_student_preds, mb_teacher_preds = self.school(mb_imgs)
+            mb_loss = self.criterion(mb_student_preds, mb_teacher_preds, is_train=True)
+            mb_loss.backward()
+            all_losses.append(mb_loss.detach().cpu().item())
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-        train_loss = sum(loss_list) / len(loss_list)
+        train_loss = sum(all_losses) / len(all_losses)
         mlflow.log_metric("Train Loss", train_loss, step=epoch)
 
     def _validate(self, epoch: int) -> None:
@@ -48,13 +50,21 @@ class Runner(BaseRunner):
         all_img_paths = []
         all_heatmaps = []
         all_masks = []
+        all_losses = []
         for img_path, img, mask in self.dataloader_dict["val"]:
 
-            assert len(img) == 1  # num_batch should be 1 in val dataset
+            assert len(img) == 1  # num_batch must be 1 during validation
             heatmap = self._compute_heatmap(img)
             all_img_paths.append(img_path[0])
             all_heatmaps.append(heatmap)
             all_masks.append(mask.squeeze().detach().numpy())
+
+            # Add only heatmaps of normal images to all_losses
+            if mask.max() == 0:
+                all_losses.append(heatmap.mean())
+
+        val_loss = sum(all_losses) / len(all_losses)
+        mlflow.log_metric("Validation Loss", val_loss, step=epoch)
 
         auroc = compute_auroc(epoch, np.array(all_heatmaps), np.array(all_masks))
         mlflow.log_metric("AUROC", auroc, step=epoch)
@@ -97,8 +107,8 @@ class Runner(BaseRunner):
             mb_patches = mb_patches.to(self.cfg.runner.device)
 
             mb_student_pred, mb_teacher_pred = self.school(mb_patches)
-            loss = self.criterion(mb_student_pred, mb_teacher_pred)
-            heatmap[start:end] = loss.item()
+            mb_losses = self.criterion(mb_student_pred, mb_teacher_pred, is_train=False)
+            heatmap[start:end] = mb_losses.detach().cpu()
 
         heatmap = heatmap.expand(B, pH * pW, P)
         heatmap = F.fold(

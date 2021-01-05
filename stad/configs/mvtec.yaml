@@ -1,0 +1,74 @@
+preprocess:
+  train:
+    yaml: /dgx/github/STAD/stad/transforms/train.yaml
+  val:
+    yaml: /dgx/github/STAD/stad/transforms/val_test.yaml
+  test:
+    yaml: /dgx/github/STAD/stad/transforms/val_test.yaml
+
+dataset:
+  train:
+    name: stad.datasets - MVTecDataset
+    args:
+      data_dir: /dgx/github/STAD/data
+      query_list:
+      - mode=='train' & category=='bottle' & defect=='good'
+      debug: false
+  val:
+    name: stad.datasets - MVTecDataset
+    args:
+      data_dir: /dgx/github/STAD/data
+      query_list:
+      - mode=='test' & category=='bottle' & defect=='good'
+      - mode=='test' & category=='bottle' & defect=='broken_small'
+      debug: false
+  test:
+    name: stad.datasets - MVTecDataset
+    args:
+      data_dir: /dgx/github/STAD/data
+      query_list:
+      - mode=='test' & category=='bottle' & defect=='good'
+      - mode=='test' & category=='bottle' & defect=='broken_small'
+      debug: false
+
+dataloader:
+  train:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 32
+      num_workers: 32
+      shuffle: true
+  val:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 1
+      num_workers: 1
+      shuffle: true
+  test:
+    name: torch.utils.data - DataLoader
+    args:
+      batch_size: 1
+      num_workers: 1
+      shuffle: true
+
+school:
+  name: stad.schools - VGG19
+  args:
+
+optimizer:
+  name: torch.optim - Adam
+  args:
+    lr: 0.0001
+    weight_decay: 1.0e-06
+
+criterion:
+  name: stad.criterions - MSELoss
+  args:
+    reduction: mean
+
+runner:
+  epochs: 200
+  num_patch_batches: 32
+  patch_size: 128
+  unfold_stride: 32
+  device: cuda:1

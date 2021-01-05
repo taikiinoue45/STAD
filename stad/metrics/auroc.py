@@ -11,6 +11,9 @@ def compute_auroc(epoch: int, all_heatmaps: NDArray, all_masks: NDArray) -> floa
 
     fpr, tpr, thresholds = roc_curve(y_true, y_score, pos_label=1)
     plt.plot(fpr, tpr, marker="o", color="k")
+    plt.xlabel("FPR: FP / (TN + FP)", fontsize=14)
+    plt.ylabel("TPR: TP / (TP + FN)", fontsize=14)
     plt.savefig(f"epochs/{epoch}/roc_curve.png")
+    plt.close()
 
     return roc_auc_score(y_true, y_score)
